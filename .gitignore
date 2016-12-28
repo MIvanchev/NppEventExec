@@ -1,6 +1,9 @@
 # Misc
 *.csv
 
+# Resource files
+*.res
+
 # Prerequisites
 *.d
 
