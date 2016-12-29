@@ -25,7 +25,7 @@ Event,Enabled?,Name,Regex,Command,Background?
 NPPN_FILEBEFORESAVE,false,Format C/C++ source,.*[^.]\.c,Format C/C++ source,false
 ```
 
-Most of the fields are self-explanatory; the last field controls whether the rule can be executed in the background, i.e. without blocking all input to Notepad++. It makes sense to execute source formatting rules in the foreground, because editing the code during the execution can wreck havoc. The rule is also initially disabled.
+Most of the fields are self-explanatory; the last field controls whether the rule can be executed in the background, i.e. without blocking all input to Notepad++. It makes sense to execute source formatting rules in the foreground, because editing the code during the execution can wreck havoc. The rule is initially disabled to avoid showing error messages before the prerequisites are all set up. You can find a versatile formatting script [here](https://github.com/MIvanchev/snippets/blob/master/NppExec/Format%20source.script).
 
 Assuming you've already added a script called 'Compile C/C++ source' to NppExec and you wish to run it every time the file is saved, extend the file by the following line:
 
