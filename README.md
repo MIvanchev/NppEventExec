@@ -80,6 +80,10 @@ NPPN_SNAPSHOTDIRTYFILELOADED | An unsaved file was restored on startup
 
 NppEventExec can be compiled with Visual Studio or Mingw-w64. MinGW would also work, the only problem being the missing `strsafe.h` header, which is essential for NppEventExec. There is no VS project (perhaps a helpful contributor could PR one), use the provided makefiles instead: Makefile.msvc for VS and Makefile.mingw for MinGW and Mingw-w64. MinGW and Mingw-w64 both include GNU make. You will also need [Boost.Regex](http://www.boost.org/doc/libs/1_61_0/libs/regex/doc/html/index.html), preferably the same version as Notepad++. Edit the makefiles to set the correct path and library name for Boost.Regex. An executable for quick testing is generated in the debug configuration.
 
+## Help and supported
+
+The best place to discuss the plugin, receive help or report a problem is the [Notepad++ Community](https://notepad-plus-plus.org/community/). Of course you can also contact me privately.
+
 ## License
 
 Copyright © 2016 Mihail Ivanchev.
