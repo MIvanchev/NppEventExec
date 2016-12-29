@@ -14,7 +14,7 @@ The supported Notepad++ events are listed under [Supported Events](#supported-ev
 
 ## Installation
 
-As of yet, NppEventExec cannot be deployed through the editor's plugin manager. To install it, download the latest binaries from this repository and extract the contents to Notepad++'s plugins directory, e.g. `C:\Program Files\Notepad++\plugins`. For the plugin to be usable, NppExec needs to be installed as well.
+As of yet, NppEventExec cannot be deployed through the editor's plugin manager. To install it, download the [latest binaries](https://github.com/MIvanchev/NppEventExec/releases/download/v0.1.0/NppEventExec-plugin-x86-0.1.0.zip) from this repository and extract the contents to Notepad++'s plugins directory, e.g. `C:\Program Files\Notepad++\plugins`. For the plugin to be usable, NppExec needs to be installed as well.
 
 ## Usage
 
