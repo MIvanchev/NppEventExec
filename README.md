@@ -18,14 +18,14 @@ As of yet, NppEventExec cannot be deployed through the editor's plugin manager. 
 
 ## Usage
 
-The current early version of NppEventExec features no GUI editor for the creation of rules. Instead, they have to be defined in the file `NppEventExec_rules.csv` in Notepad++'s plugin configuration directory, e.g. `C:\Program Files\Notepad++\plugins\Config`. The file contains records with comma-separated fields according to [RFC 4180](https://tools.ietf.org/html/rfc4180). The initial file provided with the plugin includes an example rule to demonstrate the data format and help you create additional rules:
+The current early version of NppEventExec features no GUI editor for the creation of rules. Instead, they have to be defined in the file `NppEventExec_rules.csv` in Notepad++'s plugin configuration directory, e.g. `%APPDATA%\Notepad++\plugins\config`. The file contains records with comma-separated fields according to [RFC 4180](https://tools.ietf.org/html/rfc4180) and must be encoded in UTF-8. The first line contains a CSV header. Given below is the content of an example file containing a single rule to demonstrate the data format and help you create additional rules:
 
 ```
 Event,Enabled?,Name,Regex,Command,Background?
 NPPN_FILEBEFORESAVE,false,Format C/C++ source,.*[^.]\.c,Format C/C++ source,false
 ```
 
-Most of the fields are self-explanatory; the last field controls whether the rule can be executed in the background, i.e. without blocking all input to Notepad++. It makes sense to execute source formatting rules in the foreground, because editing the code during the execution can wreck havoc. The rule is initially disabled to avoid showing error messages before the prerequisites are all set up. You can find a versatile formatting script [here](https://github.com/MIvanchev/snippets/blob/master/NppExec/Format%20source.script).
+You can find this file in the `config` directory of the source code. Most of the fields are self-explanatory; the last field controls whether the rule can be executed in the background, i.e. without blocking all input to Notepad++. It makes sense to execute source formatting rules in the foreground, because editing the code during the execution can wreck havoc. The rule is initially disabled to avoid showing error messages before the prerequisites are all set up. You can find a versatile formatting script [here](https://github.com/MIvanchev/snippets/blob/master/NppExec/Format%20source.script).
 
 Assuming you've already added a script called 'Compile C/C++ source' to NppExec and you wish to run it every time the file is saved, extend the file by the following line:
 

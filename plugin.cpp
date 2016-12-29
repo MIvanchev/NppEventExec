@@ -443,7 +443,7 @@ int main(int argc, char *argv[])
     MSG msg;
 
     pluginInst = GetModuleHandle(NULL);
-    configDir = copyStr(L".");
+    configDir = copyStr(L"config");
     pluginDir = copyStr(L".");
     readRules(&rules);
     printRules(rules);

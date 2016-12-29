@@ -148,7 +148,7 @@ extern "C" {
 #define PLUGIN_COPYRIGHT L"(C) 2016 Mihail Ivanchev"
 
 /** The license this plugin is distributed under. */
-#define PLUGIN_LICENSE L"GNU General Public License"
+#define PLUGIN_LICENSE L"GNU General Public License, Version 3 (GNU GPLv3)"
 
 /** The (required) name of this plugin's DLL. */
 #define PLUGIN_MODULE PLUGIN_NAME L".dll"

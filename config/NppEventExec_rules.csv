@@ -1,0 +1,2 @@
+Event,Enabled?,Name,Regex,Command,Background?
+NPPN_FILEBEFORESAVE,false,Format C/C++ source,.*[^.]\.(c|cpp|h|hpp),Format C/C++ source,false
