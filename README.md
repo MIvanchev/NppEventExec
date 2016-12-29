@@ -1,6 +1,6 @@
 # NppEventExec
 
-A handy [Notepad++](https://github.com/notepad-plus-plus/notepad-plus-plus) plugin which allows you to automatically execute [NppExec](https://sourceforge.net/projects/npp-plugins/files/NppExec) scripts on Notepad++ events. Compatible with recent Notepad++ versions and all NppExec versions starting from v0.2.5. See [compatibility section](#compatibility) for details.
+A handy [Notepad++](https://github.com/notepad-plus-plus/notepad-plus-plus) plugin which allows you to automatically execute [NppExec](https://sourceforge.net/projects/npp-plugins/files/NppExec) scripts on Notepad++ events. Compatible with recent Notepad++ versions and all NppExec versions starting from v0.2.5. See the [Compatibility section](#compatibility) for details.
 
 * _Version: 0.1.0_
 * _Binary Verison_: [Download](#installation)
@@ -8,9 +8,9 @@ A handy [Notepad++](https://github.com/notepad-plus-plus/notepad-plus-plus) plug
 
 ## Introduction
 
-NppEventExec supports the creation, management and automatic execution of rules. A rule embodies an NppExec command to be executed for the currently opened file in Notepad++ on an event. Whether the rule is executed for the current file is governed by a regular expression which the absolute file path is checked against whenever the desired event occurs. An intuitive example of a rule is: "execute the NppExec command 'Format C/C++ source' when the current file is about to be saved and it has the extension .c, .h, .cpp or .hpp."
+NppEventExec supports the creation, management and automatic execution of rules. A rule embodies an NppExec command to be executed for the currently opened file in Notepad++ on an event. Whether the rule is executed for the current document is governed by a regular expression which the absolute file path is checked against whenever the desired event occurs. An intuitive example of a rule is: "execute the NppExec command 'Format C/C++ source' when the current file is about to be saved and it has the extension .c, .h, .cpp or .hpp."
 
-The supported Notepad++ events are listed under [Supported Events](#supported-events) section.
+The supported Notepad++ events are listed under [Supported Events](#supported-events).
 
 ## Installation
 
@@ -18,7 +18,7 @@ As of yet, NppEventExec cannot be deployed through the editor's plugin manager. 
 
 ## Usage
 
-The current early version of NppEventExec features no GUI editor for the creation of the rules. Instead, the rules have to be defined in the file `NppEventExec_rules.csv` in Notepad++'s plugin configuration directory, e.g. `C:\Program Files\Notepad++\plugins\Config`. The file contains records with comma-separated fields according to [RFC 4180](https://tools.ietf.org/html/rfc4180). The initial file provided with the plugin includes an example rule to demonstrate the data format and help you create additional rules:
+The current early version of NppEventExec features no GUI editor for the creation of rules. Instead, they have to be defined in the file `NppEventExec_rules.csv` in Notepad++'s plugin configuration directory, e.g. `C:\Program Files\Notepad++\plugins\Config`. The file contains records with comma-separated fields according to [RFC 4180](https://tools.ietf.org/html/rfc4180). The initial file provided with the plugin includes an example rule to demonstrate the data format and help you create additional rules:
 
 ```
 Event,Enabled?,Name,Regex,Command,Background?
@@ -41,7 +41,7 @@ The executed NppExec script receives 2 arguments, in `$(ARGV[1])` and `$(ARGV[2]
 
 ## Releases
 
-The latest version of NppEventExec is 0.1.0. You can grab the binaries from this repository; see [Section Installation](#installation) for installation instructions. This is quite an early release still missing a lot of features so be vigilant and please report any issues you encounter. Any feedback is much appreciated &ndash; share your thoughts, wishes, ideas and problems.
+The latest version of NppEventExec is `0.1.0`. You can grab the binaries from this repository; see [Installation](#installation) for installation instructions. This is quite an early release still missing a lot of features so be vigilant and please report any issues you encounter. Any feedback is much appreciated &ndash; share your thoughts, wishes, ideas and problems.
 
 ## Compatibility
 
