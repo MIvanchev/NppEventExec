@@ -22,7 +22,7 @@ The current early version of NppEventExec features no GUI editor for the creatio
 
 ```
 Event,Enabled?,Name,Regex,Command,Background?
-NPPN_FILEBEFORESAVE,false,Format C/C++ source,.*[^.]\.c,Format C/C++ source,false
+NPPN_FILEBEFORESAVE,false,Format C/C++ source,.*[^.]\.(c|cpp|h|hpp),Format C/C++ source,false
 ```
 
 You can find this file in the `config` directory of the source code. Most of the fields are self-explanatory; the last field controls whether the rule can be executed in the background, i.e. without blocking all input to Notepad++. It makes sense to execute source formatting rules in the foreground, because editing the code during the execution can wreck havoc. The rule is initially disabled to avoid showing error messages before the prerequisites are all set up. You can find a versatile formatting script [here](https://github.com/MIvanchev/snippets/blob/master/NppExec/Format%20source.script).
