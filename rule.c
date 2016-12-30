@@ -120,8 +120,8 @@ int readRules(Rule **rules)
         }
     }
 
-    freeStr(path);
     csvClose();
+    freeStr(path);
     *rules = list;
     return 0;
 

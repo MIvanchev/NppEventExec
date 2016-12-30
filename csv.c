@@ -125,7 +125,7 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
     lenUnits = 0;
     lenChars = 0;
 
-    while (true)
+    for(;; )
     {
         if (!byteBufLen)
         {
@@ -317,7 +317,7 @@ wchar_t* csvGetString(size_t minChars, size_t maxChars)
     if (!(buf = allocStr(STRING_ALLOC_STEP)))
     {
         /* TODO error */
-        return NULL;
+        goto fail_alloc;
     }
 
     bufLen = STRING_ALLOC_STEP;
@@ -333,14 +333,14 @@ wchar_t* csvGetString(size_t minChars, size_t maxChars)
                                &numChars)) == -1)
         {
             /* TODO error */
-            return NULL;
+            goto fail_chars;
         }
 
         chrLen += numChars;
         if (chrLen > maxChars)
         {
             /* TODO error */
-            return NULL;
+            goto fail_max_chars;
         }
 
         str += numUnits;
@@ -353,21 +353,19 @@ wchar_t* csvGetString(size_t minChars, size_t maxChars)
         else if (bufPos >= bufLen - 2)
         {
             if (bufLen <= SIZE_MAX - STRING_ALLOC_STEP)
-            {
                 bufLen += STRING_ALLOC_STEP;
-            }
             else if (bufLen != SIZE_MAX)
                 bufLen = SIZE_MAX;
             else
             {
                 /* TODO error */
-                return NULL;
+                goto fail_too_long;
             }
 
             if (!(tmp = reallocStr(buf, bufLen)))
             {
                 /* TODO error */
-                return NULL;
+                goto fail_realloc;
             }
 
             buf = tmp;
@@ -378,7 +376,7 @@ wchar_t* csvGetString(size_t minChars, size_t maxChars)
     if (chrLen < minChars)
     {
         /* TODO error */
-        return NULL;
+        goto fail_min_chars;
     }
 
     *str = L'\0';
@@ -390,6 +388,15 @@ wchar_t* csvGetString(size_t minChars, size_t maxChars)
     }
 
     return tmp;
+
+fail_min_chars:
+fail_realloc:
+fail_too_long:
+fail_max_chars:
+fail_chars:
+    freeStr(buf);
+fail_alloc:
+    return NULL;
 }
 
 int csvGetValue(wchar_t *buf, size_t maxLen)
@@ -412,7 +419,7 @@ int csvGetValue(wchar_t *buf, size_t maxLen)
                                &numUnits,
                                &numChars)) == -1)
         {
-            /* TODO */
+            /* TODO error */
             return 1;
         }
 
@@ -481,7 +488,7 @@ int csvGetBool(void)
     if (csvGetValue(val, BUF_LEN_TO_MIN_CHAR_COUNT(val)))
     {
         /* TODO error */
-        return 1;
+        return -1;
     }
     else if (!_wcsicmp(val, L"0")
              || !_wcsicmp(val, L"off")
@@ -540,8 +547,9 @@ bool readHeader(void)
     {
         do
         {
-            if ((res
-                     = csvGetChars(buf, BUFLEN(buf), &numUnits,
+            if ((res = csvGetChars(buf,
+                                   BUFLEN(buf),
+                                   &numUnits,
                                    &numChars)) == -1)
             {
                 /* TODO error */
@@ -563,7 +571,7 @@ bool nextChar(wchar_t *chr)
     unit = *byteBufPtr++;
     byteBufLen--;
 
-    if((unit & 0xC0) == 0x80 || (unit & 0xFC) == 0xFC)
+    if((unit & 0xC0) == 0x80 || (unit & 0xF8) == 0xF8)
     {
         /* TODO error */
         return false;
@@ -580,7 +588,7 @@ bool nextChar(wchar_t *chr)
     }
 
     seqLen = UTF8_SEQ_LEN[unit];
-    code = unit & ((1 << (7 - seqLen)) - 1);
+    code = unit & ((1 << (6 - seqLen)) - 1);
 
     if (seqLen <= byteBufLen)
     {
