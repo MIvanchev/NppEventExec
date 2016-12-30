@@ -2,7 +2,7 @@
 
 A handy [Notepad++](https://github.com/notepad-plus-plus/notepad-plus-plus) plugin which allows you to automatically execute [NppExec](https://sourceforge.net/projects/npp-plugins/files/NppExec) scripts on Notepad++ events. Compatible with recent Notepad++ versions and all NppExec versions starting from v0.2.5. See the [Compatibility section](#compatibility) for details.
 
-* _Version: 0.1.0_
+* _Version: 0.1.1_
 * _Binary Verison_: [Download](#installation)
 * _License_: GNU GPLv3
 
@@ -14,7 +14,7 @@ The supported Notepad++ events are listed under [Supported Events](#supported-ev
 
 ## Installation
 
-As of yet, NppEventExec cannot be deployed through the editor's plugin manager. To install it, download the [latest binaries](https://github.com/MIvanchev/NppEventExec/releases/download/v0.1.0/NppEventExec-plugin-x86-0.1.0.zip) from this repository and extract the contents to Notepad++'s plugins directory, e.g. `C:\Program Files\Notepad++\plugins`. For the plugin to be usable, NppExec needs to be installed as well.
+As of yet, NppEventExec cannot be deployed through the editor's plugin manager. To install it, download the [latest binaries](https://github.com/MIvanchev/NppEventExec/releases/download/v0.1.1/NppEventExec-plugin-x86-0.1.1.zip) from this repository and extract the contents to Notepad++'s plugins directory, e.g. `C:\Program Files\Notepad++\plugins`. For the plugin to be usable, NppExec needs to be installed as well.
 
 ## Usage
 
@@ -41,7 +41,7 @@ The executed NppExec script receives 2 arguments, in `$(ARGV[1])` and `$(ARGV[2]
 
 ## Releases
 
-The latest version of NppEventExec is `0.1.0`. You can grab the binaries from this repository; see [Installation](#installation) for installation instructions. This is quite an early release still missing a lot of features so be vigilant and please report any issues you encounter. Any feedback is much appreciated &ndash; share your thoughts, wishes, ideas and problems.
+The latest version of NppEventExec is `0.1.1`. You can grab the binaries from this repository; see [Installation](#installation) for installation instructions. This is quite an early release still missing a lot of features so be vigilant and please report any issues you encounter. Any feedback is much appreciated &ndash; share your thoughts, wishes, ideas and problems.
 
 ## Compatibility
 
