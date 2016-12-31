@@ -132,7 +132,7 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
             if (!eof && !readBytes())
             {
                 /* TODO error */
-                return -1;
+                goto fail_bytes;
             }
             else if (eof)
             {
@@ -140,18 +140,18 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
                 {
                 case QUOTED:
                     /* TODO error */
-                    return -1;
+                    goto fail_syntax;
                 case QUOTED_EOL:
                     /* TODO error */
-                    return -1;
+                    goto fail_syntax;
                 case EOL:
                     /* TODO error */
-                    return -1;
+                    goto fail_syntax;
                 default:
                     if (remFields)
                     {
                         /* TODO error */
-                        return -1;
+                        goto fail_syntax;
                     }
 
                     goto eof;
@@ -167,7 +167,7 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
         else if (!nextChar(chr))
         {
             /* TODO error */
-            return -1;
+            goto fail_syntax;
         }
 
         switch (state)
@@ -193,7 +193,7 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
                 if (!remFields)
                 {
                     /* TODO error */
-                    return -1;
+                    goto fail_syntax;
                 }
 
                 goto next_field;
@@ -202,10 +202,10 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
                 continue;
             case L'\n':
                 /* TODO error */
-                return -1;
+                goto fail_syntax;
             case L'"':
                 /* TODO error */
-                return -1;
+                goto fail_syntax;
             }
 
             break;
@@ -218,7 +218,7 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
                 break;
             case L'\n':
                 /* TODO error */
-                return -1;
+                goto fail_syntax;
             case L'"':
                 state = QUOTE;
                 continue;
@@ -230,12 +230,12 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
             if (!IS_LF(chr))
             {
                 /* TODO error */
-                return -1;
+                goto fail_syntax;
             }
             else if (remFields)
             {
                 /* TODO error */
-                return -1;
+                goto fail_syntax;
             }
 
             goto next_record;
@@ -244,7 +244,7 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
             if (*chr != L'\n')
             {
                 /* TODO error */
-                return 1;
+                goto fail_syntax;
             }
 
             state = QUOTED;
@@ -257,7 +257,7 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
                 if (!remFields)
                 {
                     /* TODO error */
-                    return 1;
+                    goto fail_syntax;
                 }
 
                 goto next_field;
@@ -266,7 +266,7 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
                 continue;
             case L'\n':
                 /* TODO error */
-                return 1;
+                goto fail_syntax;
             case L'"':
                 state = QUOTED;
                 break;
@@ -300,6 +300,10 @@ buf_full:
     *numUnits = lenUnits;
     *numChars = lenChars;
     return res;
+
+fail_syntax:
+fail_bytes:
+    return -1;
 }
 
 wchar_t* csvGetString(size_t minChars, size_t maxChars)
