@@ -38,9 +38,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 /** TODO */
 #define MAX_EVENT_CHARS 32
 
-#define IS_QUOTE(c) (*c == L'"')
-#define IS_LF(c)    (*c == L'\n')
-
 typedef enum
 {
     INITIAL,
@@ -147,7 +144,9 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
                 case EOL:
                     /* TODO error */
                     goto fail_syntax;
-                default:
+                case INITIAL:
+                case UNQUOTED:
+                case QUOTE:
                     if (remFields)
                     {
                         /* TODO error */
@@ -176,7 +175,7 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
 
             remFields--;
 
-            if (IS_QUOTE(chr))
+            if (*chr == L'"')
             {
                 state = QUOTED;
                 continue;
@@ -227,7 +226,7 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
             break;
 
         case EOL:
-            if (!IS_LF(chr))
+            if (*chr != L'\n')
             {
                 /* TODO error */
                 goto fail_syntax;
@@ -272,8 +271,8 @@ int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
                 break;
             }
 
-            break;
-
+            /* TODO error */
+            goto fail_syntax;
         }
 
         if (IS_HIGH_SURROGATE(*chr))
