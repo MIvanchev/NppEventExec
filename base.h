@@ -19,8 +19,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #define __BASE_H__
 
 #define WIN32_LEAN_AND_MEAN
+#ifndef UNICODE
 #define UNICODE
+#endif
+#ifndef _UNICODE
 #define _UNICODE
+#endif
 #include <windows.h>
 #include <windowsx.h>
 #include <commctrl.h>
@@ -120,7 +124,7 @@ extern "C" {
     STR(VERSION_PATCH) L".0"
 
 #define DLGPROC_RESULT(dlg, res)                \
-    SetWindowLong((dlg), DWL_MSGRESULT, (res)); \
+    SetWindowLongPtr((dlg), DWLP_MSGRESULT, (res)); \
     return TRUE;
 
 #define setWndPos(wnd, px, py)  SetWindowPos((wnd), \

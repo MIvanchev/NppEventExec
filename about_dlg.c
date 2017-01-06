@@ -179,8 +179,8 @@ void onInitDlg(HWND dlg)
         return;
     }
 
-    style = GetWindowLong(btnLicense, GWL_STYLE);
-    SetWindowLong(btnLicense, GWL_STYLE, style | BS_OWNERDRAW);
+    style = GetWindowLongPtr(btnLicense, GWL_STYLE);
+    SetWindowLongPtr(btnLicense, GWL_STYLE, style | BS_OWNERDRAW);
     SendMessage(btnLicense,
                 WM_SETFONT,
                 (WPARAM) linkFont,
