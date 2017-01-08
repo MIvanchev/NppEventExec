@@ -87,6 +87,7 @@ typedef struct
 
 static wchar_t* createArgs(LRESULT bufferId, const wchar_t *path);
 static bool launchQueueDlg(bool userAction);
+static void removeExec(RuleExec *prevExec, RuleExec *exec);
 static RuleExec* getExecAt(size_t pos);
 static void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime);
 static void updateQueue(void);
@@ -99,7 +100,7 @@ static void setColumnWidth(int totalWidth,
 static void setCloseable(bool closeable);
 static void addColumn(Column column, wchar_t *title);
 static BOOL CALLBACK dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
-static void removeColData(void);
+static void removeColData(RuleExec *exec);
 static void addColData(RuleExec *exec, int execPos);
 static ColumnData* getColumnData(RuleExec *exec);
 static void onInitDlg(HWND dlg);
@@ -281,14 +282,31 @@ fail_mem:
     return false;
 }
 
+void removeExec(RuleExec *prevExec, RuleExec *exec)
+{
+    if (prevExec)
+        prevExec->next = exec->next;
+    else
+        execs = exec->next;
+
+    if (!exec->next)
+        lastExec = prevExec;
+
+    numExecs--;
+    numForeground -= !exec->rule->background;
+
+    freeMem(exec->args);
+    freeMem(exec);
+}
+
 RuleExec* getExecAt(size_t pos)
 {
-    RuleExec *re;
+    RuleExec *exec;
 
-    for (re = execs; pos; re = re->next, pos--)
+    for (exec = execs; pos; exec = exec->next, pos--)
         ;
 
-    return re;
+    return exec;
 }
 
 void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime)
@@ -297,6 +315,8 @@ void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime)
     DWORD prevState;
     bool colDataAvail;
     bool foreground;
+    UINT state;
+    UINT lastState;
 
     prevNumExecs = numExecs;
     prevState = execs->state;
@@ -326,9 +346,39 @@ void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime)
             if (prevNumExecs != numExecs)
             {
                 if (colDataAvail)
-                    removeColData();
+                    removeColData(NULL);
+
+                /* IMPORTANT: Set the new count before modifying the item states
+                ** or else the list might try to access the now deleted last
+                ** item in the event handler.
+                */
+
+                lastState = ListView_GetItemState(queueDlg->lvQueue,
+                                                  prevNumExecs - 1,
+                                                  LVNI_SELECTED
+                                                  | LVNI_FOCUSED);
 
                 ListView_SetItemCount(queueDlg->lvQueue, numExecs);
+
+                for (int ii = 1; ii < numExecs; ii++)
+                {
+                    state = ListView_GetItemState(queueDlg->lvQueue,
+                                                  ii,
+                                                  LVNI_SELECTED | LVNI_FOCUSED);
+
+                    ListView_SetItemState(queueDlg->lvQueue,
+                                          ii - 1,
+                                          state,
+                                          LVNI_SELECTED | LVNI_FOCUSED);
+                }
+
+                if (numExecs)
+                {
+                    ListView_SetItemState(queueDlg->lvQueue,
+                                          numExecs - 1,
+                                          lastState,
+                                          LVNI_SELECTED | LVNI_FOCUSED);
+                }
             }
             else if (prevState != execs->state)
                 ListView_Update(queueDlg->lvQueue, 0);
@@ -355,11 +405,7 @@ void updateQueue(void)
         if (state != NPE_STATEREADY)
             return;
 
-        execs = exec->next;
-        numExecs--;
-        numForeground -= !exec->rule->background;
-        freeMem(exec->args);
-        freeMem(exec);
+        removeExec(NULL, execs);
 
         if (!numExecs)
             return;
@@ -479,44 +525,47 @@ void addColumn(Column column, wchar_t *title)
 
 void setAbortBtnState(void)
 {
-    int currItem;
     int lastItem;
-    RuleExec *re;
-
-    lastItem = -1;
-    currItem = -1;
-    re = execs;
+    int currItem;
+    RuleExec *exec;
+    BOOL enabled;
 
     currItem = ListView_GetNextItem(queueDlg->lvQueue, -1, LVNI_SELECTED);
-    if (currItem == -1)
+    if (currItem != -1)
     {
-        EnableWindow(queueDlg->btnAbort, FALSE);
-        return;
-    }
+        lastItem = 0;
+        exec = execs;
 
-    while (currItem != -1)
-    {
-        for (; lastItem < currItem; lastItem++, re = re->next)
+        /* Consider the button enabled unless an active execution is selected as well. */
+
+        enabled = TRUE;
+
+        do
         {
-            if (re->state == STATE_EXECUTING)
+            for (; lastItem < currItem; lastItem++)
+                exec = exec->next;
+
+            if (exec->state == STATE_EXECUTING)
             {
-                EnableWindow(queueDlg->btnAbort, FALSE);
-                return;
+                enabled = FALSE;
+                break;
             }
+
+            currItem = ListView_GetNextItem(queueDlg->lvQueue,
+                                            currItem,
+                                            LVNI_SELECTED);
         }
-
-        currItem = ListView_GetNextItem(queueDlg->lvQueue,
-                                        currItem,
-                                        LVNI_SELECTED);
+        while (currItem != -1);
     }
+    else
+        enabled = FALSE;
 
-    EnableWindow(queueDlg->btnAbort, TRUE);
+    if (IsWindowEnabled(queueDlg->btnAbort) != enabled)
+        EnableWindow(queueDlg->btnAbort, enabled);
 }
 
 BOOL CALLBACK dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
-    MINMAXINFO *mmi;
-
     switch (msg)
     {
     case WM_INITDIALOG:
@@ -525,16 +574,15 @@ BOOL CALLBACK dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 
     case WM_DESTROY:
         while (queueDlg->colDataFirst)
-            removeColData();
+            removeColData(NULL);
 
         freeMem(queueDlg);
         queueDlg = NULL;
         DLGPROC_RESULT(dlg, 0);
 
     case WM_GETMINMAXINFO:
-        mmi = (MINMAXINFO*) lp;
-        mmi->ptMinTrackSize.x = DLG_MIN_WIDTH;
-        mmi->ptMinTrackSize.y = DLG_MIN_HEIGHT;
+        ((MINMAXINFO*) lp)->ptMinTrackSize.x = DLG_MIN_WIDTH;
+        ((MINMAXINFO*) lp)->ptMinTrackSize.y = DLG_MIN_HEIGHT;
         DLGPROC_RESULT(dlg, 0);
 
     case WM_SIZE:
@@ -590,29 +638,6 @@ BOOL CALLBACK dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
     return FALSE;
 }
 
-void removeColData(void)
-{
-    ColumnData *data;
-    wchar_t *prevPos;
-    wchar_t *nextPos;
-
-    freeStr(queueDlg->colDataFirst->path);
-    freeStr(queueDlg->colDataLast->pos);
-
-    prevPos = queueDlg->colDataFirst->pos;
-
-    for (data = queueDlg->colDataFirst; data && data->next; data = data->next)
-    {
-        nextPos = data->next->pos;
-        data->next->pos = prevPos;
-        prevPos = nextPos;
-    }
-
-    data = queueDlg->colDataFirst;
-    queueDlg->colDataFirst = queueDlg->colDataFirst->next;
-    freeMem(data);
-}
-
 void addColData(RuleExec *exec, int execPos)
 {
     ColumnData *data;
@@ -631,13 +656,17 @@ void addColData(RuleExec *exec, int execPos)
     numUnits = sendNppMsg(NPPM_GETFULLPATHFROMBUFFERID,
                           exec->bufferId,
                           (LPARAM) NULL);
-    /* We assume we can fit the path in memory, because it has been done before ;) */
     if (!(pos = allocStr(numDigits + 1)))
     {
         /* TODO error */
         goto fail_alloc_pos;
     }
-    else if (!(path = allocStr(numUnits + 1)))
+
+    /* We assume we can fit the path in memory, because it has been done before.
+    ** Technically it's risky.
+    */
+
+    if (!(path = allocStr(numUnits + 1)))
     {
         /* TODO error */
         goto fail_alloc_path;
@@ -677,6 +706,43 @@ fail_alloc_path:
 fail_alloc_pos:
 fail_too_many_digits:
     return;
+}
+
+void removeColData(RuleExec *exec)
+{
+    ColumnData *data;
+    ColumnData *prev;
+
+    prev = NULL;
+    data = queueDlg->colDataFirst;
+
+    if (exec)
+    {
+        while (data->exec != exec)
+        {
+            prev = data;
+            data = data->next;
+        }
+
+        if (!data)
+            return;
+    }
+
+    freeStr(data->path);
+
+    for (; data->next; prev = data, data = data->next)
+    {
+        data->exec = data->next->exec;
+        data->path = data->next->path;
+    }
+
+    if (!(queueDlg->colDataLast = prev))
+        queueDlg->colDataFirst = NULL;
+    else
+        queueDlg->colDataLast->next = NULL;
+
+    freeStr(data->pos);
+    freeMem(data);
 }
 
 ColumnData* getColumnData(RuleExec *exec)
@@ -800,5 +866,50 @@ void onGetDispInfo(NMLVDISPINFO *dispInfo)
 
 void onAbort(void)
 {
-    /* TODO */
+    int prevItem;
+    int currItem;
+    RuleExec *prevExec;
+    RuleExec *currExec;
+    RuleExec *nextExec;
+    int numAborted;
+
+    prevExec = NULL;
+    currExec = execs;
+    prevItem = 0;
+    currItem = -1;
+    numAborted = 0;
+
+    while ((currItem = ListView_GetNextItem(queueDlg->lvQueue,
+                                            currItem,
+                                            LVNI_SELECTED)) != -1)
+    {
+        for (; prevItem < currItem - numAborted; prevItem++)
+        {
+            prevExec = currExec;
+            currExec = currExec->next;
+        }
+
+        nextExec = currExec->next;
+        removeColData(currExec);
+        removeExec(prevExec, currExec);
+        currExec = nextExec;
+
+        /* We need this, because we only update the list view after all
+        ** executions have been aborted.
+        */
+
+        numAborted++;
+    }
+
+    if (!numForeground && !queueDlg->userAction)
+        EndDialog(queueDlg->handle, 0);
+    else
+    {
+        /* IMPORTANT: Adjust the count before deselecting all items. */
+        ListView_SetItemCount(queueDlg->lvQueue, numExecs);
+        ListView_SetItemState(queueDlg->lvQueue, -1, 0,
+                              LVIS_SELECTED);
+        SetFocus(queueDlg->lvQueue);
+        EnableWindow(queueDlg->btnAbort, FALSE);
+    }
 }

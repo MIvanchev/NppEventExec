@@ -116,7 +116,7 @@ bool validateModuleName(wchar_t **dir)
             if (len == SIZE_MAX)
             {
                 /* TODO error */
-                goto fail;
+                goto fail_too_long;
             }
             else if (len > SIZE_MAX - MAX_PATH)
                 len = SIZE_MAX;
@@ -126,7 +126,7 @@ bool validateModuleName(wchar_t **dir)
             if (!(tmp = reallocStr(path, len)))
             {
                 /* TODO error */
-                goto fail;
+                goto fail_realloc;
             }
 
             path = tmp;
@@ -134,7 +134,7 @@ bool validateModuleName(wchar_t **dir)
         else
         {
             /* TODO error */
-            goto fail;
+            goto fail_read;
         }
     }
 
@@ -143,7 +143,7 @@ bool validateModuleName(wchar_t **dir)
     if (wcscmp(fname, PLUGIN_MODULE))
     {
         /* TODO error */
-        goto fail;
+        goto fail_invalid;
     }
 
     *(fname - 1) = L'\0';
@@ -151,12 +151,16 @@ bool validateModuleName(wchar_t **dir)
     if (!(*dir = reallocStr(path, wcslen(path) + 1)))
     {
         /* TODO error */
-        goto fail;
+        goto fail_resize;
     }
 
     return true;
 
-fail:
+fail_resize:
+fail_invalid:
+fail_read:
+fail_realloc:
+fail_too_long:
     freeStr(path);
 fail_alloc:
     return false;
@@ -189,7 +193,7 @@ wchar_t* queryConfigDir(void)
         if (len == SIZE_MAX)
         {
             /* TODO error */
-            goto fail;
+            goto fail_too_long;
         }
         else if (len > SIZE_MAX - MAX_PATH)
             len = SIZE_MAX;
@@ -199,7 +203,7 @@ wchar_t* queryConfigDir(void)
         if (!(tmp = reallocStr(dir, len)))
         {
             /* TODO error */
-            goto fail;
+            goto fail_realloc;
         }
 
         dir = tmp;
@@ -208,12 +212,14 @@ wchar_t* queryConfigDir(void)
     if (!(tmp = reallocStr(dir, wcslen(dir) + 1)))
     {
         /* TODO error */
-        goto fail;
+        goto fail_resize;
     }
 
     return tmp;
 
-fail:
+fail_resize:
+fail_realloc:
+fail_too_long:
     freeStr(dir);
 fail_alloc:
     return NULL;
@@ -245,7 +251,7 @@ void execRules(LRESULT bufferId, unsigned int code)
     else if (!(path = allocStr(numUnits + 1)))
     {
         /* TODO error */
-        goto fail_alloc_path;
+        goto fail_alloc;
     }
 
     sendNppMsg(NPPM_GETFULLPATHFROMBUFFERID, bufferId, (LPARAM) path);
@@ -267,7 +273,7 @@ void execRules(LRESULT bufferId, unsigned int code)
     freeStr(path);
     return;
 
-fail_alloc_path:
+fail_alloc:
 fail_path_too_long:
     return;
 }
@@ -370,7 +376,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         deinitPlugin();
 
         if (allocatedBytes)
-            printf("Unallocated memory: %lu bytes", allocatedBytes);
+            printf("Unallocated memory: %lu bytes\n", allocatedBytes);
 
         PostQuitMessage(0);
         break;
@@ -487,7 +493,6 @@ int main(int argc, char *argv[])
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-
 
     return 0;
 }

@@ -21,6 +21,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 void* reallocMem(void *mem, size_t numBytes)
 {
     void *res;
+#ifdef DEBUG
+    DWORD prevSize;
+#endif
 
     if (numBytes > (SIZE_T) -1)
     {
@@ -31,7 +34,7 @@ void* reallocMem(void *mem, size_t numBytes)
     if (mem)
     {
 #ifdef DEBUG
-        allocatedBytes -= HeapSize(GetProcessHeap(), 0, mem);
+        prevSize = HeapSize(GetProcessHeap(), 0, mem);
 #endif
 
         res = HeapReAlloc(GetProcessHeap(), 0, mem, numBytes);
@@ -46,6 +49,9 @@ void* reallocMem(void *mem, size_t numBytes)
     }
 
 #ifdef DEBUG
+    if (mem)
+        allocatedBytes -= prevSize;
+
     allocatedBytes += numBytes;
 #endif
 
