@@ -18,6 +18,18 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #ifndef __UTIL_H__
 #define __UTIL_H__
 
+typedef struct
+{
+    int column;
+    wchar_t *header;
+} ListViewColumn;
+
+typedef struct
+{
+    int column;
+    double size;
+} ListViewColumnSize;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -31,6 +43,8 @@ wchar_t* combinePaths(const wchar_t *parent, const wchar_t *child);
 void centerWndToParent(HWND wnd);
 void offsetCtrlPos(HWND parent, HWND ctrl, int dx, int dy);
 void offsetCtrlSize(HWND ctrl, int dw, int dh);
+void addListViewColumns(HWND listView, ListViewColumn *columns);
+void sizeListViewColumns(HWND listView, ListViewColumnSize *sizes);
 int msgBox(UINT type,
            HWND parent,
            const wchar_t *title,

@@ -37,6 +37,5 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #define IDC_LV_QUEUE 2000
 #define IDC_BT_ABORT 2001
 #define IDC_BT_MODE  2002
-#define IDC_ST_QUEUE 2003
 
 #endif /* __RESOURCE_H__ */

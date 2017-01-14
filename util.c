@@ -19,6 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "mem.h"
 #include "plugin.h"
 #include "util.h"
+#include <math.h>
 
 static LRESULT CALLBACK cbtProc(int code, WPARAM wp, LPARAM lp);
 static int msgBoxV(UINT type,
@@ -189,6 +190,45 @@ void offsetCtrlSize(HWND ctrl, int dw, int dh)
                  rc.right - rc.left + dw,
                  rc.bottom - rc.top + dh,
                  SWP_NOMOVE | SWP_NOZORDER);
+}
+
+void addListViewColumns(HWND listView, ListViewColumn *columns)
+{
+    LVCOLUMN col;
+
+    for (; columns->column != -1; columns++)
+    {
+        col.mask = LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM;
+        col.iSubItem = columns->column;
+        col.pszText = columns->header;
+        col.cx = 0;
+
+        ListView_InsertColumn(listView, columns->column, &col);
+    }
+}
+
+void sizeListViewColumns(HWND listView, ListViewColumnSize *sizes)
+{
+    RECT rc;
+    LONG totalWidth;
+    LONG remainingWidth;
+    LONG width;
+
+    GetClientRect(listView, &rc);
+
+    totalWidth = rc.right - rc.left;
+    remainingWidth = totalWidth;
+
+    for (; sizes->column != -1; sizes++)
+    {
+        width = totalWidth * sizes->size;
+        if (width > remainingWidth)
+            width = remainingWidth;
+
+        remainingWidth -= width;
+
+        ListView_SetColumnWidth(listView, sizes->column, width);
+    }
 }
 
 int msgBox(UINT type,

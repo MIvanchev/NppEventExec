@@ -73,7 +73,6 @@ typedef struct _ColumnData
 typedef struct
 {
     HWND handle;
-    HWND txtQueue;
     HWND lvQueue;
     HWND btnMode;
     HWND btnAbort;
@@ -92,13 +91,7 @@ static RuleExec* getExecAt(size_t pos);
 static void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime);
 static void updateQueue(void);
 static void layoutDlg(void);
-static void layoutColumns(void);
-static void setColumnWidth(int totalWidth,
-                           int *remainingWidth,
-                           Column col,
-                           double widthInPercent);
 static void setCloseable(bool closeable);
-static void addColumn(Column column, wchar_t *title);
 static BOOL CALLBACK dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
 static void removeColData(RuleExec *exec);
 static void addColData(RuleExec *exec, int execPos);
@@ -424,83 +417,55 @@ void updateQueue(void)
 
 void layoutDlg(void)
 {
-    RECT rc;
-    int dlgWidth;
-    int dlgHeight;
-    int btnBottom;
-    int btnLeft;
-    int lvQueueTop;
-    int lvQueueBottom;
+    RECT clientRc;
+    RECT btnModeRc;
+    RECT btnCloseRc;
+    LONG lvQueueLeft;
+    LONG lvQueueTop;
+    LONG lvQueueWidth;
+    LONG lvQueueHeight;
+    LONG btnModeLeft;
+    LONG btnModeTop;
+    LONG btnAbortLeft;
+    LONG btnAbortTop;
+    LONG btnCloseLeft;
+    LONG btnCloseTop;
 
-    dlgWidth = DLG_MIN_WIDTH;
-    dlgHeight = DLG_MIN_HEIGHT;
+    setWndSize(queueDlg->handle, DLG_MIN_WIDTH, DLG_MIN_HEIGHT);
 
-    setWndSize(queueDlg->handle, dlgWidth, dlgHeight);
-    GetClientRect(queueDlg->handle, &rc);
-    queueDlg->clientW = rc.right - rc.left;
-    queueDlg->clientH = rc.bottom - rc.top;
+    GetClientRect(queueDlg->handle, &clientRc);
+    GetWindowRect(queueDlg->btnMode, &btnModeRc);
+    GetWindowRect(queueDlg->btnClose, &btnCloseRc);
 
-    GetWindowRect(queueDlg->txtQueue, &rc);
-    setWndPos(queueDlg->txtQueue, 5, 5);
-    setWndSize(queueDlg->txtQueue, queueDlg->clientW - 10, rc.bottom - rc.top);
+    queueDlg->clientW = clientRc.right - clientRc.left;
+    queueDlg->clientH = clientRc.bottom - clientRc.top;
+    btnCloseLeft = queueDlg->clientW / 2
+                   - (btnCloseRc.right - btnCloseRc.left) / 2;
+    btnCloseTop = queueDlg->clientH - 5 - (btnCloseRc.bottom - btnCloseRc.top);
+    btnModeLeft = 5;
+    btnModeTop = queueDlg->clientH - 5
+                 - (btnModeRc.bottom - btnModeRc.top) - 35;
+    btnAbortLeft = btnModeLeft + btnModeRc.right - btnModeRc.left + 5;
+    btnAbortTop = btnModeTop;
+    lvQueueLeft = 5;
+    lvQueueTop = 5;
+    lvQueueWidth = queueDlg->clientW - 5 - lvQueueLeft;
+    lvQueueHeight = btnModeTop - 5 - lvQueueTop;
 
-    lvQueueTop = 5 + rc.bottom - rc.top + 5;
+    setWndPos(queueDlg->lvQueue, lvQueueLeft, lvQueueTop);
+    setWndSize(queueDlg->lvQueue, lvQueueWidth, lvQueueHeight);
+    setWndPos(queueDlg->btnMode, btnModeLeft, btnModeTop);
+    setWndPos(queueDlg->btnAbort, btnAbortLeft, btnAbortTop);
+    setWndPos(queueDlg->btnClose, btnCloseLeft, btnCloseTop);
 
-    GetWindowRect(queueDlg->btnClose, &rc);
-    setWndPos(queueDlg->btnClose,
-              queueDlg->clientW / 2 - (rc.right - rc.left) / 2,
-              queueDlg->clientH - 5 - (rc.bottom - rc.top));
-
-    btnBottom = queueDlg->clientH - 5 - (rc.bottom - rc.top) - 35;
-    GetWindowRect(queueDlg->btnMode, &rc);
-    setWndPos(queueDlg->btnMode, 5, btnBottom - (rc.bottom - rc.top));
-
-    lvQueueBottom = btnBottom - (rc.bottom - rc.top) - 5;
-
-    btnLeft = 5 + (rc.right - rc.left) + 5;
-    GetWindowRect(queueDlg->btnAbort, &rc);
-    setWndPos(queueDlg->btnAbort, btnLeft, btnBottom - (rc.bottom - rc.top));
-
-    setWndPos(queueDlg->lvQueue, 5, lvQueueTop);
-    setWndSize(queueDlg->lvQueue,
-               queueDlg->clientW - 10,
-               lvQueueBottom - lvQueueTop);
-
-    layoutColumns();
-}
-
-void layoutColumns(void)
-{
-    RECT rc;
-    int totalWidth;
-    int remainingWidth;
-
-    GetClientRect(queueDlg->lvQueue, &rc);
-
-    totalWidth = rc.right - rc.left;
-    remainingWidth = totalWidth;
-
-    setColumnWidth(totalWidth, &remainingWidth, COL_POS, 0.08);
-    setColumnWidth(totalWidth, &remainingWidth, COL_RULE, 0.25);
-    setColumnWidth(totalWidth, &remainingWidth, COL_STATE, 0.15);
-    setColumnWidth(totalWidth, &remainingWidth, COL_PATH, 0.40);
-    ListView_SetColumnWidth(queueDlg->lvQueue, COL_BACKGROUND, remainingWidth);
-}
-
-void setColumnWidth(int totalWidth,
-                    int *remainingWidth,
-                    Column col,
-                    double widthInPercent)
-{
-    int width;
-
-    width = totalWidth * widthInPercent;
-    if (width > *remainingWidth)
-        width = *remainingWidth;
-
-    *remainingWidth -= width;
-
-    ListView_SetColumnWidth(queueDlg->lvQueue, col, width);
+    sizeListViewColumns(queueDlg->lvQueue, (ListViewColumnSize[]) {
+        {COL_POS, 0.08},
+        {COL_RULE, 0.25},
+        {COL_STATE, 0.15},
+        {COL_PATH, 0.40},
+        {COL_BACKGROUND, 0.12},
+        {-1}
+    });
 }
 
 void setCloseable(bool closeable)
@@ -509,18 +474,6 @@ void setCloseable(bool closeable)
     flags = MF_BYCOMMAND | (closeable ? 0 : (MF_DISABLED | MF_GRAYED));
     EnableMenuItem(GetSystemMenu(queueDlg->handle, FALSE), SC_CLOSE, flags);
     EnableWindow(queueDlg->btnClose, closeable ? TRUE : FALSE);
-}
-
-void addColumn(Column column, wchar_t *title)
-{
-    LVCOLUMN col;
-
-    col.mask = LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM;
-    col.iSubItem = column;
-    col.pszText = title;
-    col.cx = 0;
-
-    ListView_InsertColumn(queueDlg->lvQueue, col.iSubItem, &col);
 }
 
 void setAbortBtnState(void)
@@ -761,7 +714,6 @@ void onInitDlg(HWND dlg)
     int pos;
 
     queueDlg->handle = dlg;
-    queueDlg->txtQueue = GetDlgItem(dlg, IDC_ST_QUEUE);
     queueDlg->lvQueue = GetDlgItem(dlg, IDC_LV_QUEUE);
     queueDlg->btnMode = GetDlgItem(dlg, IDC_BT_MODE);
     queueDlg->btnAbort = GetDlgItem(dlg, IDC_BT_ABORT);
@@ -775,11 +727,14 @@ void onInitDlg(HWND dlg)
                                         LVS_EX_FULLROWSELECT,
                                         LVS_EX_FULLROWSELECT);
 
-    addColumn(COL_POS, L"#");
-    addColumn(COL_RULE, L"Rule");
-    addColumn(COL_STATE, L"State");
-    addColumn(COL_PATH, L"Path");
-    addColumn(COL_BACKGROUND, L"Background?");
+    addListViewColumns(queueDlg->lvQueue, (ListViewColumn[]) {
+        {COL_POS, L"#"},
+        {COL_RULE, L"Rule"},
+        {COL_STATE, L"State"},
+        {COL_PATH, L"Path"},
+        {COL_BACKGROUND, L"Background?"},
+        {-1}
+    });
 
     ListView_SetItemCount(queueDlg->lvQueue, numExecs);
 
@@ -808,7 +763,6 @@ void onSize(int newW, int newH)
     queueDlg->clientW = newW;
     queueDlg->clientH = newH;
 
-    offsetCtrlSize(queueDlg->txtQueue, deltaWidth, 0);
     offsetCtrlSize(queueDlg->lvQueue, deltaWidth, deltaHeight);
     offsetCtrlPos(queueDlg->handle, queueDlg->btnMode, 0, deltaHeight);
     offsetCtrlPos(queueDlg->handle, queueDlg->btnAbort, 0, deltaHeight);
@@ -859,7 +813,7 @@ void onGetDispInfo(NMLVDISPINFO *dispInfo)
         item->pszText = colData ? colData->path : PLACEHOLDER;
         break;
     case COL_BACKGROUND:
-        item->pszText = rule->background ? L"yes" : L"no";
+        item->pszText = BOOL_TO_STR_YES_NO(rule->background);
         break;
     }
 }

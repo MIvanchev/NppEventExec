@@ -138,6 +138,11 @@ extern "C" {
                                              (sh),  \
                                              SWP_NOMOVE | SWP_NOZORDER)
 
+#define BOOL_TO_STR_TRUE_FALSE(val) ((val) ? L"true" : L"false")
+#define BOOL_TO_STR_YES_NO(val)     ((val) ? L"yes" : L"no")
+#define BOOL_TO_STR_ON_OFF(val)     ((val) ? L"on" : L"off")
+#define BOOL_TO_STR_ONE_ZERO(val)   ((val) ? L"1" : "0")
+
 /** The official name of this plugin. */
 #define PLUGIN_NAME L"NppEventExec"
 
