@@ -1,3 +1,7 @@
+packages/
+Debug/
+Release/
+
 # Resource files
 *.res
 
