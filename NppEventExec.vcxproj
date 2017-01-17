@@ -104,27 +104,29 @@
     <NuGetPackageImportStamp>fffa340e</NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LinkIncremental>false</LinkIncremental>
-    <GenerateManifest>false</GenerateManifest>
+    <GenerateManifest>
+    </GenerateManifest>
     <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\</OutDir>
     <IntDir>$(Configuration)\$(Platform)\</IntDir>
+    <LinkIncremental />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>false</LinkIncremental>
-    <GenerateManifest>false</GenerateManifest>
+    <GenerateManifest>
+    </GenerateManifest>
     <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\</OutDir>
     <IntDir>$(Configuration)\$(Platform)\</IntDir>
+    <LinkIncremental />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\</OutDir>
-    <GenerateManifest>false</GenerateManifest>
+    <GenerateManifest>
+    </GenerateManifest>
     <IntDir>$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\</OutDir>
-    <GenerateManifest>false</GenerateManifest>
+    <GenerateManifest>
+    </GenerateManifest>
     <IntDir>$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -133,21 +135,40 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>DEBUG;WIN32;_DEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <SDLCheck>true</SDLCheck>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <MinimalRebuild>false</MinimalRebuild>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <MinimalRebuild>
+      </MinimalRebuild>
+      <BufferSecurityCheck>
+      </BufferSecurityCheck>
+      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100</DisableSpecificWarnings>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <ProgramDataBaseFileName />
+      <FloatingPointModel />
+      <TreatWChar_tAsBuiltInType />
+      <ForceConformanceInForLoopScope />
+      <PrecompiledHeaderOutputFile />
+      <OmitFramePointers />
+      <ErrorReporting />
+      <SuppressStartupBanner>false</SuppressStartupBanner>
+      <CallingConvention />
+      <TreatWarningAsError />
+      <SDLCheck>false</SDLCheck>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <AssemblerListingLocation />
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>gdi32.lib;comctl32.lib</AdditionalDependencies>
       <ManifestFile />
-      <EnableUAC>false</EnableUAC>
       <TypeLibraryResourceID />
       <SuppressStartupBanner>false</SuppressStartupBanner>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <ImportLibrary />
+      <RandomizedBaseAddress />
+      <DataExecutionPrevention />
+      <EnableUAC />
+      <ProfileGuidedDatabase />
+      <ProgramDatabaseFile />
+      <LinkErrorReporting />
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -156,71 +177,122 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>DEBUG;WIN32;_DEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <SDLCheck>true</SDLCheck>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <MinimalRebuild>false</MinimalRebuild>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <MinimalRebuild>
+      </MinimalRebuild>
+      <BufferSecurityCheck>
+      </BufferSecurityCheck>
+      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100</DisableSpecificWarnings>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <ProgramDataBaseFileName />
+      <FloatingPointModel />
+      <TreatWChar_tAsBuiltInType />
+      <ForceConformanceInForLoopScope />
+      <PrecompiledHeaderOutputFile />
+      <ErrorReporting />
+      <SuppressStartupBanner>false</SuppressStartupBanner>
+      <CallingConvention />
+      <TreatWarningAsError />
+      <SDLCheck>false</SDLCheck>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <AssemblerListingLocation />
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>gdi32.lib;comctl32.lib</AdditionalDependencies>
-      <EnableUAC>false</EnableUAC>
       <SuppressStartupBanner>false</SuppressStartupBanner>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <ImportLibrary />
       <ManifestFile />
       <TypeLibraryResourceID />
+      <RandomizedBaseAddress />
+      <DataExecutionPrevention />
+      <EnableUAC />
+      <ProfileGuidedDatabase />
+      <ProgramDatabaseFile />
+      <LinkErrorReporting />
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>EnableAllWarnings</WarningLevel>
       <Optimization>Full</Optimization>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <SDLCheck>true</SDLCheck>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
       <WholeProgramOptimization>false</WholeProgramOptimization>
+      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100</DisableSpecificWarnings>
+      <BufferSecurityCheck>
+      </BufferSecurityCheck>
+      <FloatingPointModel />
+      <ProgramDataBaseFileName />
+      <TreatWChar_tAsBuiltInType />
+      <ForceConformanceInForLoopScope />
+      <PrecompiledHeaderOutputFile />
+      <OmitFramePointers />
+      <MinimalRebuild />
+      <ErrorReporting />
+      <DebugInformationFormat>None</DebugInformationFormat>
+      <SuppressStartupBanner>false</SuppressStartupBanner>
+      <CallingConvention />
+      <TreatWarningAsError />
+      <SDLCheck>false</SDLCheck>
+      <AssemblerListingLocation />
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <ImportLibrary>
       </ImportLibrary>
       <AdditionalDependencies>gdi32.lib;comctl32.lib</AdditionalDependencies>
-      <EnableUAC>false</EnableUAC>
       <SuppressStartupBanner>false</SuppressStartupBanner>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <ManifestFile />
       <TypeLibraryResourceID />
+      <RandomizedBaseAddress />
+      <DataExecutionPrevention />
+      <EnableUAC />
+      <ProfileGuidedDatabase />
+      <ProgramDatabaseFile />
+      <LinkErrorReporting />
+      <ImageHasSafeExceptionHandlers />
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>EnableAllWarnings</WarningLevel>
       <Optimization>Full</Optimization>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <SDLCheck>true</SDLCheck>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
       <WholeProgramOptimization>false</WholeProgramOptimization>
+      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100</DisableSpecificWarnings>
+      <FloatingPointModel />
+      <ProgramDataBaseFileName />
+      <TreatWChar_tAsBuiltInType />
+      <ForceConformanceInForLoopScope />
+      <PrecompiledHeaderOutputFile />
+      <MinimalRebuild />
+      <ErrorReporting />
+      <DebugInformationFormat>None</DebugInformationFormat>
+      <SuppressStartupBanner>false</SuppressStartupBanner>
+      <CallingConvention />
+      <TreatWarningAsError />
+      <SDLCheck>false</SDLCheck>
+      <BufferSecurityCheck />
+      <AssemblerListingLocation />
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <ImportLibrary>
       </ImportLibrary>
       <AdditionalDependencies>gdi32.lib;comctl32.lib</AdditionalDependencies>
-      <EnableUAC>false</EnableUAC>
       <SuppressStartupBanner>false</SuppressStartupBanner>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <ManifestFile />
       <TypeLibraryResourceID />
+      <RandomizedBaseAddress />
+      <DataExecutionPrevention />
+      <EnableUAC />
+      <ProfileGuidedDatabase />
+      <ProgramDatabaseFile />
+      <LinkErrorReporting />
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
