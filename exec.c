@@ -19,6 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "mem.h"
 #include "plugin.h"
 #include "rule.h"
+#include "Scintilla.h"
 #include "exec.h"
 #include "resource.h"
 #include "util.h"
@@ -48,7 +49,7 @@ typedef struct _RuleExec
 {
     const Rule *rule;
     wchar_t *args;
-    LRESULT bufferId;
+    uptr_t bufferId;
     RuleExecState state;
     struct _RuleExec *next;
 } RuleExec;
@@ -84,10 +85,10 @@ typedef struct
     bool userAction;
 } Dialog;
 
-static wchar_t* createArgs(LRESULT bufferId, const wchar_t *path);
+static wchar_t* createArgs(uptr_t bufferId, const wchar_t *path);
 static bool launchQueueDlg(bool userAction);
 static void removeExec(RuleExec *prevExec, RuleExec *exec);
-static RuleExec* getExecAt(size_t pos);
+static RuleExec* getExecAt(int pos);
 static void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime);
 static void updateQueue(void);
 static void layoutDlg(void);
@@ -109,7 +110,7 @@ static int numExecs;
 static int numForeground;
 static UINT timerId;
 
-int execRule(LRESULT bufferId, const wchar_t *path, const Rule *rule)
+int execRule(uptr_t bufferId, const wchar_t *path, const Rule *rule)
 {
     RuleExec *exec;
     RuleExec *prevExec;
@@ -119,12 +120,12 @@ int execRule(LRESULT bufferId, const wchar_t *path, const Rule *rule)
         /* TODO error */
         goto fail_too_many_execs;
     }
-    else if (!(exec = allocMem(sizeof(RuleExec))))
+    if (!(exec = allocMem(sizeof(RuleExec))))
     {
         /* TODO error */
         goto fail_alloc;
     }
-    else if (!(exec->args = createArgs(bufferId, path)))
+    if (!(exec->args = createArgs(bufferId, path)))
     {
         /* TODO error */
         goto fail_args;
@@ -194,29 +195,24 @@ int openQueueDlg(void)
     return !launchQueueDlg(true);
 }
 
-wchar_t* createArgs(LRESULT bufferId, const wchar_t *path)
+wchar_t* createArgs(uptr_t bufferId, const wchar_t *path)
 {
     wchar_t *args;
-    unsigned long numDigits;
+    uptr_t numDigits;
+    uptr_t temp;
     size_t pathLen;
     size_t size;
-    int sign;
 
-    if (bufferId > LONG_MAX)
-    {
-        /* TODO error */
-        goto fail_id_too_large;
-    }
+    numDigits = 0;
 
-    sign = bufferId < 0;
-    numDigits = countDigits(bufferId);
+    for (temp = bufferId; temp; temp /= 10)
+        numDigits++;
+
     pathLen = wcslen(path);
 
-    /* The initial size accounts for the sign, 2 pairs of quotes, 1 space
-    ** inbetween and '\0'.
-    */
+    /* The initial size accounts for 2 pairs of quotes, 1 space and the '\0'. */
 
-    size = sign + 6;
+    size = 6;
 
     if (numDigits > SIZE_MAX - size || pathLen > SIZE_MAX - size - numDigits)
     {
@@ -238,7 +234,6 @@ wchar_t* createArgs(LRESULT bufferId, const wchar_t *path)
 
 fail_alloc:
 fail_args_too_long:
-fail_id_too_large:
 
     return NULL;
 }
@@ -292,12 +287,14 @@ void removeExec(RuleExec *prevExec, RuleExec *exec)
     freeMem(exec);
 }
 
-RuleExec* getExecAt(size_t pos)
+RuleExec* getExecAt(int pos)
 {
     RuleExec *exec;
 
-    for (exec = execs; pos; exec = exec->next, pos--)
-        ;
+    exec = execs;
+
+    for (; pos; pos--)
+        exec = exec->next;
 
     return exec;
 }
@@ -305,7 +302,7 @@ RuleExec* getExecAt(size_t pos)
 void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime)
 {
     int prevNumExecs;
-    DWORD prevState;
+    RuleExecState prevState;
     bool colDataAvail;
     bool foreground;
     UINT state;
@@ -596,14 +593,19 @@ void addColData(RuleExec *exec, int execPos)
     ColumnData *data;
     wchar_t *pos;
     wchar_t *path;
-    unsigned long numDigits;
+    int numDigits;
+    int num;
     size_t numUnits;
 
-    numDigits = countDigits(execPos);
+    numDigits = 1;
+
+    for (num = execPos; num; num /= 10)
+        numDigits++;
+
     if (numDigits > SIZE_MAX - 1)
     {
         /* TODO error */
-        goto fail_too_many_digits;
+        goto fail_pos_too_large;
     }
 
     numUnits = sendNppMsg(NPPM_GETFULLPATHFROMBUFFERID,
@@ -657,7 +659,7 @@ fail_alloc_data:
 fail_alloc_path:
     freeStr(pos);
 fail_alloc_pos:
-fail_too_many_digits:
+fail_pos_too_large:
     return;
 }
 

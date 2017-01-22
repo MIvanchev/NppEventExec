@@ -1,10 +1,24 @@
 # NppEventExec
 
-A handy [Notepad++](https://github.com/notepad-plus-plus/notepad-plus-plus) plugin which allows you to automatically execute [NppExec](https://sourceforge.net/projects/npp-plugins/files/NppExec) scripts on Notepad++ events. Compatible with recent Notepad++ versions and all NppExec versions starting from v0.2.5. See the [Compatibility section](#compatibility) for details.
+A handy [Notepad++](https://github.com/notepad-plus-plus/notepad-plus-plus) plugin which allows you to automatically execute [NppExec](https://sourceforge.net/projects/npp-plugins/files/NppExec) scripts on Notepad++ events. Compatible with recent Notepad++ and NppExec versions; see  [Compatibility](#compatibility) for supported older versions.
 
-* _Version: 0.1.1_
-* _Binary Verison_: [Download](#installation)
+* _Latest version:_ 0.1.1
 * _License_: GNU GPLv3
+
+[![Build status](https://ci.appveyor.com/api/projects/status/eav4wt6kbx47d74y?svg=true)](https://ci.appveyor.com/project/MIvanchev/nppeventexec)
+(via [AppVeyor](https://www.appveyor.com/))
+
+## Contents
+
+* [Introduction](#introduction)
+* [Installation](#installation)
+* [Usage](#usage)
+* [Releases](#releases)
+* [Compatibility](#compatibility)
+* [Supported Events](#supported-events)
+* [Compilation](#compilation)
+* [Help and support](#help-and-support)
+* [License](#license)
 
 ## Introduction
 
@@ -14,7 +28,7 @@ The supported Notepad++ events are listed under [Supported Events](#supported-ev
 
 ## Installation
 
-As of yet, NppEventExec cannot be deployed through the editor's plugin manager. To install it, download the [latest binaries](https://github.com/MIvanchev/NppEventExec/releases/download/v0.1.1/NppEventExec-plugin-x86-0.1.1.zip) from this repository and extract the contents to Notepad++'s plugins directory, e.g. `C:\Program Files\Notepad++\plugins`. For the plugin to be usable, NppExec needs to be installed as well.
+As of yet, NppEventExec cannot be installed through the editor's plugin manager. Instead, download the [latest binaries](https://github.com/MIvanchev/NppEventExec/releases/download/v0.1.1/NppEventExec-plugin-x86-0.1.1.zip) from this repository and extract the contents to Notepad++'s plugins directory, e.g. `C:\Program Files\Notepad++\plugins`. For the plugin to be usable, NppExec needs to be installed as well.
 
 ## Usage
 
@@ -25,13 +39,13 @@ Event,Enabled?,Name,Regex,Command,Background?
 NPPN_FILEBEFORESAVE,false,Format C/C++ source,.*[^.]\.(c|cpp|h|hpp),Format C/C++ source,false
 ```
 
-You can find this file in the `config` directory of the source code. Most of the fields are self-explanatory; the last field controls whether the rule can be executed in the background, i.e. without blocking all input to Notepad++. It makes sense to execute source formatting rules in the foreground, because editing the code during the execution can wreck havoc. The rule is initially disabled to avoid showing error messages before the prerequisites are all set up. You can find a versatile formatting script [here](https://github.com/MIvanchev/snippets/blob/master/NppExec/Format%20source.script).
+You can find this file in the `config` directory of this project. Most of the fields are self-explanatory; the last field controls whether the rule can be executed in the background, i.e. without blocking all input to Notepad++. It makes sense to execute source formatting rules in the foreground, because editing the code during the execution can wreck havoc and your work might be lost. The rule is initially disabled to avoid showing error messages before the prerequisites are all set up. You can find a versatile formatting script [here](https://github.com/MIvanchev/snippets/blob/master/NppExec/Format%20source.script). Create an NppExec command titled `Format C/C++ source` with the contents of the linked script and change the value of the `Enabled?` column to `true`.
 
-Assuming you've already added a script called 'Compile C/C++ source' to NppExec and you wish to run it every time the file is saved, extend the file by the following line:
+Assuming you've also created a command called "Compile C/C++ source" in NppExec and you wish to run it every time the file is saved, extend the file by the following line:
 
 ```
 Event,Enabled?,Name,Regex,Command,Background?
-NPPN_FILEBEFORESAVE,false,Format C/C++ source,.*[^.]\.(c|cpp|h|hpp),Format C/C++ source,false
+NPPN_FILEBEFORESAVE,true,Format C/C++ source,.*[^.]\.(c|cpp|h|hpp),Format C/C++ source,false
 NPPN_FILESAVED,true,Compile C/C++ source,*[.]\.(c|cpp|h|hpp),Compile C/C++ source,true
 ```
 
@@ -78,9 +92,18 @@ NPPN_SNAPSHOTDIRTYFILELOADED | An unsaved file was restored on startup
 
 ## Compilation
 
-NppEventExec can be compiled with Visual Studio or Mingw-w64. MinGW would also work, the only problem being the missing `strsafe.h` header, which is essential for NppEventExec. There is no VS project (perhaps a helpful contributor could PR one), use the provided makefiles instead: Makefile.msvc for VS and Makefile.mingw for MinGW and Mingw-w64. MinGW and Mingw-w64 both include GNU make. You will also need [Boost.Regex](http://www.boost.org/doc/libs/1_61_0/libs/regex/doc/html/index.html), preferably the same version as Notepad++. Edit the makefiles to set the correct path and library name for Boost.Regex. An executable for quick testing is generated in the debug configuration.
+NppEventExec can be compiled with Visual Studio 2013 and Mingw-w64. MinGW would also work, the only problem being the missing `strsafe.h` header, which is essential for NppEventExec. The Mingw-w64/MinGW makefile supports the same configurations and platforms as the VS project:
 
-## Help and supported
+```
+make CONFIGURATION=Debug PLATFORM=Win32
+make CONFIGURATION=Debug PLATFORM=x64
+make CONFIGURATION=Release PLATFORM=Win32
+make CONFIGURATION=Release PLATFORM=x64
+```
+
+The default configuration and platform are `Debug` and `Win32` respectively. To be fully compatible with the regular expression format of Notepad++, NppEventExec depends on [Boost.Regex](http://www.boost.org/doc/libs/1_58_0/libs/regex/doc/html/index.html). If you use Mingw-w64 or MinGW, edit the makefile to set the correct path and library name for Boost.Regex. When using Visual Studio, you can quickly obtain precompiled binaries with [NuGet](https://www.nuget.org/). An executable for quick testing is generated in the debug configuration, but only when using the makefile.
+
+## Help and support
 
 The best place to discuss the plugin, receive help or report a problem is the [Notepad++ Community](https://notepad-plus-plus.org/community/). Of course you can also contact me privately.
 

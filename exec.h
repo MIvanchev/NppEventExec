@@ -22,7 +22,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 extern "C" {
 #endif
 
-int execRule(LRESULT bufferId, const wchar_t *path, const Rule *rule);
+int execRule(uptr_t bufferId, const wchar_t *path, const Rule *rule);
 int openQueueDlg(void);
 
 #ifdef __cplusplus

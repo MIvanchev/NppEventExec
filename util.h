@@ -52,7 +52,6 @@ int msgBox(UINT type,
            ...);
 int errorMsgBox(HWND parent, const wchar_t *format, ...);
 
-unsigned long countDigits(long num);
 size_t countChars(wchar_t *str);
 
 #ifdef __cplusplus

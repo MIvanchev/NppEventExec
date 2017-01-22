@@ -44,6 +44,9 @@ extern "C" {
 
 int readRules(Rule **rules);
 void freeRules(Rule *rules);
+Rule* copyRules(const Rule *rules, Rule **last);
+Rule* getRuleAt(Rule *rule, int pos);
+int getRuleCount(const Rule *rules);
 
 #ifdef DEBUG
 void printRules(Rule *rules);

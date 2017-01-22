@@ -635,15 +635,16 @@ bool nextChar(wchar_t *chr)
         /* TODO error */
         return false;
     }
-    else if (code < 0x10000)
+
+    if (code < 0x10000)
     {
-        *chr = code;
+        *chr = (wchar_t) code;
     }
     else
     {
         code -= 0x10000;
-        *(chr + 0) = 0xD800 + (code >> 10);
-        *(chr + 1) = 0xDC00 + (code & 0x3FF);
+        *(chr + 0) = (wchar_t) (0xD800 + (code >> 10));
+        *(chr + 1) = (wchar_t) (0xDC00 + (code & 0x3FF));
     }
 
     return true;

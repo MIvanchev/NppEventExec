@@ -40,7 +40,13 @@ void* reallocMem(void *mem, size_t numBytes)
         res = HeapReAlloc(GetProcessHeap(), 0, mem, numBytes);
     }
     else
+    {
+#ifdef DEBUG
+        prevSize = 0;
+#endif
+
         res = HeapAlloc(GetProcessHeap(), 0, numBytes);
+    }
 
     if (!res)
     {
@@ -49,9 +55,7 @@ void* reallocMem(void *mem, size_t numBytes)
     }
 
 #ifdef DEBUG
-    if (mem)
-        allocatedBytes -= prevSize;
-
+    allocatedBytes -= prevSize;
     allocatedBytes += numBytes;
 #endif
 

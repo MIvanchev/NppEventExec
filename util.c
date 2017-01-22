@@ -76,16 +76,6 @@ void freeStr(wchar_t *str)
     freeMem(str);
 }
 
-unsigned long countDigits(long num)
-{
-    unsigned long res;
-
-    for (res = 1; num; res++, num /= 10)
-        ;
-
-    return res;
-}
-
 size_t countChars(wchar_t *str)
 {
     size_t cnt = 0;
@@ -221,7 +211,8 @@ void sizeListViewColumns(HWND listView, ListViewColumnSize *sizes)
 
     for (; sizes->column != -1; sizes++)
     {
-        width = totalWidth * sizes->size;
+        /* Unlikely that this will get problematic */
+        width = (LONG) (totalWidth * sizes->size);
         if (width > remainingWidth)
             width = remainingWidth;
 

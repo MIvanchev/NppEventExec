@@ -27,6 +27,8 @@ along with NppEventExec. If not, see <http://www.gnu.org/licenses/>.
 /** TODO doc */
 #define FILENAME PLUGIN_NAME L"_rules.csv"
 
+static Rule* copyRule(const Rule *copy);
+
 int readRules(Rule **rules)
 {
     wchar_t *path;
@@ -35,13 +37,14 @@ int readRules(Rule **rules)
     Rule *last;
     Rule *rule;
     int res;
+    int numRules;
 
     if (!(path = combinePaths(getPluginConfigDir(), FILENAME)))
     {
         /* TODO error */
         goto fail_path;
     }
-    else if ((attribs = GetFileAttributesW(path)) == INVALID_FILE_ATTRIBUTES)
+    if ((attribs = GetFileAttributesW(path)) == INVALID_FILE_ATTRIBUTES)
     {
         if (GetLastError() == ERROR_FILE_NOT_FOUND)
         {
@@ -53,7 +56,7 @@ int readRules(Rule **rules)
         /* TODO error */
         goto fail_attribs;
     }
-    else if (csvOpen(path, 1, 6))
+    if (csvOpen(path, 1, 6))
     {
         /* TODO error */
         goto fail_open;
@@ -63,45 +66,53 @@ int readRules(Rule **rules)
     /* Get rid of a 'maybe uninitialized warning. */
     last = NULL;
 
-    while (true)
+    numRules = 0;
+
+    for(;; )
     {
         if ((res = csvHasChars()) == -1)
         {
             /* TODO error */
             goto fail_chars;
         }
-        else if (!res)
+        if (!res)
             break;
-        else if (!(rule = allocMem(sizeof(Rule))))
+        if (numRules == INT_MAX)
+        {
+            /* TODO error */
+            goto fail_too_many_rules;
+        }
+        if (!(rule = allocMem(sizeof(Rule))))
         {
             /* TODO error */
             goto fail_rule;
         }
-        else if (csvGetEvent(&rule->event))
+        if (csvGetEvent(&rule->event))
         {
             /* TODO error */
             goto fail_event;
         }
-        else if ((rule->enabled = csvGetBool()) == -1)
+        if ((rule->enabled = csvGetBool()) == -1)
         {
+            /* TODO error */
             goto fail_enabled;
         }
-        else if (!(rule->name = csvGetString(0, RULE_MAX_NAME_LEN)))
+        if (!(rule->name = csvGetString(0, RULE_MAX_NAME_LEN)))
         {
             /* TODO error */
             goto fail_name;
         }
-        else if (!(rule->regex = csvGetString(1, RULE_MAX_REGEX_LEN)))
+        if (!(rule->regex = csvGetString(1, RULE_MAX_REGEX_LEN)))
         {
             /* TODO error */
             goto fail_regex;
         }
-        else if (!(rule->cmd = csvGetString(0, RULE_MAX_CMD_LEN)))
+        if (!(rule->cmd = csvGetString(0, RULE_MAX_CMD_LEN)))
         {
             /* TODO error */
             goto fail_cmd;
         }
-        else if ((rule->background = csvGetBool()) == -1)
+        if ((rule->background = csvGetBool()) == -1)
         {
             goto fail_background;
         }
@@ -118,6 +129,8 @@ int readRules(Rule **rules)
             last->next = rule;
             last = last->next;
         }
+
+        numRules++;
     }
 
     csvClose();
@@ -135,6 +148,7 @@ fail_enabled:
 fail_event:
     freeMem(rule);
 fail_rule:
+fail_too_many_rules:
 fail_chars:
     freeRules(list);
     csvClose();
@@ -160,6 +174,107 @@ void freeRules(Rule *rules)
         freeMem(rule);
         rule = next;
     }
+}
+
+Rule* copyRules(const Rule *rules, Rule **last)
+{
+    Rule *copiedRules;
+    Rule *copiedLast;
+    Rule *copy;
+    const Rule *rule;
+
+    copiedRules = NULL;
+    copiedLast = NULL;
+
+    for (rule = rules; rule; rule = rule->next)
+    {
+        if (!(copy = copyRule(rule)))
+        {
+            /* TODO error */
+            freeRules(copiedRules);
+            return NULL;
+        }
+
+        if (!copiedRules)
+        {
+            copiedRules = copy;
+            copiedLast = copiedRules;
+        }
+        else
+        {
+            copiedLast->next = copy;
+            copiedLast = copiedLast->next;
+        }
+    }
+
+    *last = copiedLast;
+    return copiedRules;
+}
+
+Rule* getRuleAt(Rule *rules, int pos)
+{
+    Rule *rule;
+
+    rule = rules;
+
+    for (; pos; pos--)
+        rule = rule->next;
+
+    return rule;
+}
+
+int getRuleCount(const Rule *rules)
+{
+    int cnt;
+
+    cnt = 0;
+
+    for (; rules; rules = rules->next)
+        cnt++;
+
+    return cnt;
+}
+
+Rule* copyRule(const Rule *rule)
+{
+    Rule *copy;
+
+    if (!(copy = allocMem(sizeof(Rule))))
+    {
+        /* TODO error */
+        goto fail_rule;
+    }
+    if (!(copy->name = copyStr(rule->name)))
+    {
+        /* TODO error */
+        goto fail_name;
+    }
+    if (!(copy->regex = copyStr(rule->regex)))
+    {
+        /* TODO error */
+        goto fail_regex;
+    }
+    if (!(copy->cmd = copyStr(rule->cmd)))
+    {
+        /* TODO error */
+        goto fail_cmd;
+    }
+
+    copy->event = rule->event;
+    copy->enabled = rule->enabled;
+    copy->background = rule->background;
+    copy->next = NULL;
+
+    return copy;
+
+fail_cmd:
+    freeStr(copy->regex);
+fail_regex:
+    freeStr(copy->name);
+fail_name:
+    freeMem(copy);
+fail_rule:
+    return NULL;
 }
 
 #ifdef DEBUG

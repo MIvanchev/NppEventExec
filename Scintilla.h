@@ -1157,7 +1157,7 @@ struct SearchResultMarking {
 
 struct SearchResultMarkings {
 	long _length;
-	SearchResultMarking *_markings;
+	struct SearchResultMarking *_markings;
 };
 
 #if defined(__cplusplus) && defined(SCI_NAMESPACE)

@@ -22,6 +22,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "match.h"
 #include "rule.h"
 #include "util.h"
+#include "Scintilla.h"
 #include "exec.h"
 #include "resource.h"
 #include "about_dlg.h"
@@ -228,33 +229,43 @@ fail_alloc:
 bool queryNppExecLoaded(void)
 {
     DWORD ver;
-    return sendNppExecMsg(NPEM_GETVERDWORD, reinterpret_cast<void*>(&ver));
+    return sendNppExecMsg(NPEM_GETVERDWORD,
+                          reinterpret_cast<void*>(&ver)) == TRUE;
 }
 
-void execRules(LRESULT bufferId, unsigned int code)
+void execRules(uptr_t bufferId, unsigned int code)
 {
-    size_t numUnits;
+    LRESULT numUnits;
+    size_t numUnitsSt;
     wchar_t *path;
 
-    numUnits
-        = sendNppMsg(NPPM_GETFULLPATHFROMBUFFERID, bufferId, (LPARAM) NULL);
+    numUnits = sendNppMsg(NPPM_GETFULLPATHFROMBUFFERID,
+                          static_cast<WPARAM>(bufferId),
+                          static_cast<LPARAM>(NULL));
 
-    /* Let's not assume Notepad++ keeps the path string in a contiguous region
-    ** of memory in a zero-terminated fashion.
+    /* Let's not assume that Notepad++ keeps the path string in a contiguous
+    ** region of memory in a zero-terminated fashion. The conversion to size_t
+    ** for the validation is based on the fact that conversion to an unsigned
+    ** integer is always defined behaviour.
     */
 
-    if (numUnits > SIZE_MAX - 1)
+    numUnitsSt = static_cast<size_t>(numUnits);
+
+    if (static_cast<LRESULT>(numUnitsSt) != numUnits
+        || numUnitsSt == SIZE_MAX)
     {
         /* TODO error */
         goto fail_path_too_long;
     }
-    else if (!(path = allocStr(numUnits + 1)))
+    if (!(path = allocStr(numUnitsSt + 1)))
     {
         /* TODO error */
         goto fail_alloc;
     }
 
-    sendNppMsg(NPPM_GETFULLPATHFROMBUFFERID, bufferId, (LPARAM) path);
+    sendNppMsg(NPPM_GETFULLPATHFROMBUFFERID,
+               static_cast<WPARAM>(bufferId),
+               reinterpret_cast<LPARAM>(path));
 
     for (Rule *rule = rules; rule; rule = rule->next)
     {
@@ -262,7 +273,6 @@ void execRules(LRESULT bufferId, unsigned int code)
             && rule->enabled
             && isRegexMatch(rule->regex, path))
         {
-
             if (execRule(bufferId, path, rule))
             {
                 /* TODO error */
@@ -365,6 +375,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     wchar_t *path;
     size_t len;
     CommunicationInfo *ci;
+    DWORD *state;
     Rule *rule;
 
     switch(msg)
@@ -404,10 +415,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         else if (ci->internalMsg == NPEM_GETSTATE)
         {
-            printf("NPEM_GETSTATE\n");
-            *((DWORD*) ci->info)
-                = (rand() <
-                   RAND_MAX / 20) ? NPE_EXECUTE_OK : NPE_EXECUTE_FAILED;
+            wprintf(L"NPEM_GETSTATE\n");
+            state = static_cast<DWORD*>(ci->info);
+            if (rand() < RAND_MAX / 20)
+                *state = NPE_EXECUTE_OK;
+            else
+                *state = NPE_EXECUTE_FAILED;
         }
 
         break;
@@ -415,7 +428,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         switch (wParam)
         {
         case 0:
-            path = copyStr(L"C:\\Users\\MASTEROFANAL\\Desktop\\recipes");
+            path = copyStr(L"C:\\Users\\BAREMETAL\\Desktop\\recipes");
             break;
         case 1:
             path = copyStr(L"E:\\Develop");
@@ -424,19 +437,21 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             path = copyStr(L"E:\\Software");
             break;
         case 3:
-            path = copyStr(L"E:\\Servers\xampp");
+            path = copyStr(L"E:\\Servers\\xampp");
             break;
+        default:
+            path = copyStr(L"D:\\notes\\on-rare-plants.docx");
         }
 
         len = wcslen(path);
         if ((wchar_t*) lParam)
         {
-            StringCchCopyW((wchar_t*) lParam, len + 1, path);
+            StringCchCopyW(reinterpret_cast<wchar_t*>(lParam), len + 1, path);
         }
 
         freeStr(path);
 
-        return len;
+        return static_cast<LRESULT>(len);
     default:
         return DefWindowProc(hwnd, msg, wParam, lParam);
     }
@@ -464,7 +479,7 @@ int main(int argc, char *argv[])
     wcex.hInstance     = pluginInst;
     wcex.hIcon         = LoadIcon(NULL, IDI_APPLICATION);
     wcex.hCursor       = LoadCursor(NULL, IDC_ARROW);
-    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
+    wcex.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW+1);
     wcex.lpszMenuName  = NULL;
     wcex.lpszClassName = L"myWindowClass";
     wcex.hIconSm       = LoadIcon(NULL, IDI_APPLICATION);

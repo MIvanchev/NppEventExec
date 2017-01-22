@@ -1,6 +1,5 @@
 packages/
-Debug/
-Release/
+Build/
 
 # Resource files
 *.res
