@@ -36,12 +36,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #define URL_ICON_SET \
     L"http://www.small-icons.com/packs/16x16-free-application-icons.htm"
 
+/** TODO doc */
+#define URL_ICON_SET_LICENSE \
+    L"https://creativecommons.org/licenses/by/3.0/us/"
+
 static void layoutDlg(void);
 static INT_PTR CALLBACK aboutDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
 static void onInitDlg(HWND dlg);
 static void onDrawItem(DRAWITEMSTRUCT *dis);
 static void onOpenPluginLicense(void);
-static void onOpenIconsLicense(void);
 static void layoutLine(LONG clientWidth, int *ctrlIds);
 static LONG getContentWidth(HWND ctrl);
 static void openDocument(const wchar_t *relativePath);
@@ -126,7 +129,7 @@ INT_PTR CALLBACK aboutDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             openUrl(URL_AHASOFT);
             DLGPROC_RESULT(dlg, 0);
         case IDC_BT_ICONS_LICENSE:
-            onOpenIconsLicense();
+            openUrl(URL_ICON_SET_LICENSE);
             DLGPROC_RESULT(dlg, 0);
         }
 
@@ -223,11 +226,6 @@ void onDrawItem(DRAWITEMSTRUCT *dis)
 void onOpenPluginLicense(void)
 {
     openDocument(PLUGIN_LICENSE_PATH);
-}
-
-void onOpenIconsLicense(void)
-{
-    openDocument(ICONS_LICENSE_PATH);
 }
 
 void layoutDlg(void)
