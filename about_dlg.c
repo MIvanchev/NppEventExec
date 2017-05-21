@@ -189,6 +189,9 @@ void onDrawItem(DRAWITEMSTRUCT *dis)
     wchar_t content[256];
     COLORREF prevClr;
 
+    assert(BUFLEN(content) > 0);
+    assert(BUFLEN(content) <= INT_MAX);
+
     ctrl = dis->hwndItem;
     dc = dis->hDC;
     rc = &dis->rcItem;
@@ -203,7 +206,7 @@ void onDrawItem(DRAWITEMSTRUCT *dis)
     if (dis->CtlType == ODT_BUTTON)
     {
         prevClr = SetTextColor(dc, RGB(0, 0, 255));
-        DrawTextW(dc, content, wcslen(content), &rc1,
+        DrawTextW(dc, content, (int) wcslen(content), &rc1,
                   DT_CENTER | DT_SINGLELINE);
         SetTextColor(dc, prevClr);
     }

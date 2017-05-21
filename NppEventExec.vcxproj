@@ -147,7 +147,7 @@
       </MinimalRebuild>
       <BufferSecurityCheck>
       </BufferSecurityCheck>
-      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100;4711;4200</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100;4711;4200;4204</DisableSpecificWarnings>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <ProgramDataBaseFileName />
       <FloatingPointModel />
@@ -189,7 +189,7 @@
       </MinimalRebuild>
       <BufferSecurityCheck>
       </BufferSecurityCheck>
-      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100;4711;4200</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100;4711;4200;4204</DisableSpecificWarnings>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <ProgramDataBaseFileName />
       <FloatingPointModel />
@@ -227,7 +227,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100;4711;4200</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100;4711;4200;4204</DisableSpecificWarnings>
       <BufferSecurityCheck>
       </BufferSecurityCheck>
       <FloatingPointModel />
@@ -270,7 +270,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100;4711;4200</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100;4711;4200;4204</DisableSpecificWarnings>
       <FloatingPointModel />
       <ProgramDataBaseFileName />
       <TreatWChar_tAsBuiltInType />

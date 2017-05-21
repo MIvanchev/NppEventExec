@@ -76,10 +76,13 @@ all: $(OUTDIR) $(BIN)
 
 $(OUTDIR)\about_dlg.o: mem.h plugin.h resource.h util.h Notepad_plus_msgs.h
 $(OUTDIR)\csv.o: event_map.h mem.h util.h utf8.h plugin.h
+$(OUTDIR)\edit_dlg.o: event_map.h match.h mem.h plugin.h resource.h rule.h util.h
 $(OUTDIR)\event_map.o: Notepad_plus_msgs.h
-$(OUTDIR)\exec.o: mem.h plugin.h rule.h Scintilla.h resource.h util.h Notepad_plus_msgs.h nppexec_msgs.h
-$(OUTDIR)\plugin.o: csv.h mem.h match.h rule.h util.h Scintilla.h exec.h resource.h about_dlg.h PluginInterface.h nppexec_msgs.h
-$(OUTDIR)\rule.o: event_map.h csv.h mem.h plugin.h rule.h util.h Notepad_plus_msgs.h
+$(OUTDIR)\exec.o: rule.h Scintilla.h exec_def.h Notepad_plus_msgs.h nppexec_msgs.h mem.h plugin.h queue_dlg.h resource.h util.h
+$(OUTDIR)\plugin.o: csv.h mem.h match.h rule.h edit_dlg.h rules_dlg.h util.h Scintilla.h exec.h resource.h about_dlg.h queue_dlg.h PluginInterface.h nppexec_msgs.h
+$(OUTDIR)\queue_dlg.o: exec_def.h mem.h plugin.h resource.h util.h
+$(OUTDIR)\rule.o: event_map.h csv.h mem.h plugin.h util.h Notepad_plus_msgs.h
+$(OUTDIR)\rules_dlg.o: event_map.h match.h mem.h plugin.h resource.h rule.h edit_dlg.h util.h Notepad_plus_msgs.h Scintilla.h exec.h queue_dlg.h
 $(OUTDIR)\util.o: mem.h plugin.h
 
 $(OUTDIR):

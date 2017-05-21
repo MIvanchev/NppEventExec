@@ -481,7 +481,7 @@ void onQueueRemove(bool foreground)
 {
     int lastState;
     int state;
-    int ii;
+    unsigned int ii;
 
     dlg->queueSize--;
     dlg->foregroundCnt -= foreground;
@@ -504,6 +504,10 @@ void onQueueRemove(bool foreground)
         lastState = ListView_GetItemState(dlg->lvQueue,
                                           dlg->queueSize,
                                           LVNI_SELECTED | LVNI_FOCUSED);
+    }
+    else
+    {
+        lastState = 0; /* Shut up MSVC... */
     }
 
     ListView_SetItemCount(dlg->lvQueue, dlg->queueSize);

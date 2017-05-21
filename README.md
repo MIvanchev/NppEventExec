@@ -121,7 +121,7 @@ The default configuration and platform are `Debug` and `Win32` respectively. To 
 The best place to discuss the plugin, receive help or report a problem is the [Notepad++ Community](https://notepad-plus-plus.org/community/). Of course you can also contact me privately.
 
 ## Credits
-The plugin is using **modified** icons from the pack ["16x16 free application icons"](http://www.small-icons.com/packs/16x16-free-application-icons.htm) from [Aha-Soft](http://www.aha-soft.com/). The said icon pack is distributed under the [Creative Commons Attribution 3.0 United States License (CC BY 3.0 US)](https://creativecommons.org/licenses/by/3.0/us/). Aha-Soft make awesome icons.
+The plugin is using **modified** icons from the pack ["16x16 free application icons"](http://www.small-icons.com/packs/16x16-free-application-icons.htm) from [Aha-Soft](http://www.aha-soft.com/). The said icon pack is distributed under the [Creative Commons Attribution 3.0 United States License (CC BY 3.0 US)](https://creativecommons.org/licenses/by/3.0/us/). Aha-Soft makes awesome icons.
 
 ## License
 

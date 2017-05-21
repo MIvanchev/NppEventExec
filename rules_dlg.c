@@ -479,7 +479,8 @@ void onItemChanged(NMLISTVIEW *info)
     selectedCnt = ListView_GetSelectedCount(dlg->lvRules);
     singleSelected = selectedCnt == 1 && (info->uNewState & LVIS_SELECTED);
     firstSelected = singleSelected && !info->iItem;
-    lastSelected = singleSelected && (info->iItem == dlg->ruleCnt - 1);
+    lastSelected = singleSelected
+                   && ((unsigned int) info->iItem == dlg->ruleCnt - 1);
 
     setToolbarBtnEnabled(ID_RULE_MOVEUP, singleSelected && !firstSelected);
     setToolbarBtnEnabled(ID_RULE_MOVEDOWN, singleSelected && !lastSelected);
@@ -576,7 +577,10 @@ void onMoveDown(void)
     pos = ListView_GetNextItem(dlg->lvRules, -1, LVNI_SELECTED);
 
     if (!pos)
+    {
+        prev = NULL; /* Shut up MSVC... */
         rule = dlg->rules;
+    }
     else
     {
         prev = getRuleAt(dlg->rules, pos - 1);
