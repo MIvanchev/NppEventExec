@@ -1,6 +1,6 @@
 /*
 This file is part of NppEventExec
-Copyright (C) 2016 Mihail Ivanchev
+Copyright (C) 2016-2017 Mihail Ivanchev
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -438,6 +438,7 @@ void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime)
         if (isQueueDlgVisible())
             processQueueEvent(
                 background ? QUEUE_REMOVE_BACKGROUND : QUEUE_REMOVE_FOREGROUND);
+
 
 
 
