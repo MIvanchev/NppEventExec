@@ -24,13 +24,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "plugin.h"
 
 /** TODO */
-#define BYTE_BUF_SIZE 1024
+#define BYTE_BUF_SIZE_READ 1024
+
+/** TODO */
+#define BYTE_BUF_SIZE_WRITE 1024
 
 /** TODO */
 #define STRING_ALLOC_STEP 512
-
-/** TODO */
-#define CHAR_BUF_SIZE 256
 
 /** TODO */
 #define MAX_BOOL_CHARS 5
@@ -38,37 +38,51 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 /** TODO */
 #define MAX_EVENT_CHARS 32
 
+#define CHR_LF    0x0A
+#define CHR_CR    0x0D
+#define CHR_QUOTE 0x22
+#define CHR_COMMA 0x2C
+
 typedef enum
 {
-    INITIAL,
-    QUOTED,
-    UNQUOTED,
-    QUOTE,
-    QUOTED_EOL,
-    EOL
+    ST_INITIAL,
+    ST_QUOTED,
+    ST_UNQUOTED,
+    ST_QUOTE,
+    ST_QUOTED_EOL,
+    ST_EOL
 } ParserState;
 
-static bool readHeader(void);
-static bool nextChar(wchar_t *chr);
-static bool readBytes(void);
+static int readHeader(void);
+static int readValue(wchar_t *buf, size_t maxLen);
+static int readChar(wchar_t *chr);
+static int nextChar(wchar_t *chr);
+static int readBytes(void);
+static int writeValue(const wchar_t *str, bool escape);
+static int writeByte(unsigned char byte);
+static int writeBytes(void);
 
 static HANDLE file;
-static unsigned char byteBuf[BYTE_BUF_SIZE];
+static unsigned char *byteBuf;
 static unsigned char *byteBufPtr;
 static size_t byteBufLen;
-static bool eof;
-static size_t numFields;
-static size_t remFields;
+static size_t byteBufSize;
+static size_t fieldCnt;
+static size_t remFieldCnt;
 static ParserState state;
 
-int csvOpen(wchar_t *path, int header, size_t _numFields)
+int csvOpen(wchar_t *path, size_t _fieldCnt, int header)
 {
+    assert(path);
+    assert(_fieldCnt);
+    assert(BYTE_BUF_SIZE_READ <= SIZE_MAX);
+
     file = CreateFileW(path,
                        GENERIC_READ,
-                       FILE_SHARE_READ,
+                       FILE_SHARE_READ, /* Other procs can read too */
                        NULL,
                        OPEN_EXISTING,
-                       FILE_FLAG_SEQUENTIAL_SCAN,
+                       FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
                        NULL);
 
     if (file == INVALID_HANDLE_VALUE)
@@ -77,283 +91,133 @@ int csvOpen(wchar_t *path, int header, size_t _numFields)
         goto fail_file;
     }
 
-    eof = false;
-    numFields = _numFields;
-    remFields = numFields;
-    state = INITIAL;
+    byteBufSize = BYTE_BUF_SIZE_READ;
 
-    if (header && !readHeader())
-        goto fail_header;
-
-    return 0;
-
-fail_header:
-    csvClose();
-fail_file:
-    return 1;
-}
-
-void csvClose(void)
-{
-    CloseHandle(file);
-}
-
-int csvHasChars(void)
-{
-    if (byteBufLen)
-        return 1;
-    else if (!eof && !readBytes())
-    {
-        /* TODO error */
-        return -1;
-    }
-
-    return !eof;
-}
-
-int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits, size_t *numChars)
-{
-    wchar_t *chr;
-    size_t lenUnits;
-    size_t lenChars;
-    int res;
-
-    chr = buf;
-    lenUnits = 0;
-    lenChars = 0;
-
-    for(;; )
-    {
-        if (!byteBufLen)
-        {
-            if (!eof && !readBytes())
-            {
-                /* TODO error */
-                goto fail_bytes;
-            }
-            else if (eof)
-            {
-                switch (state)
-                {
-                case QUOTED:
-                    /* TODO error */
-                    goto fail_syntax;
-                case QUOTED_EOL:
-                    /* TODO error */
-                    goto fail_syntax;
-                case EOL:
-                    /* TODO error */
-                    goto fail_syntax;
-                case INITIAL:
-                case UNQUOTED:
-                case QUOTE:
-                    if (remFields)
-                    {
-                        /* TODO error */
-                        goto fail_syntax;
-                    }
-
-                    goto eof;
-                }
-            }
-        }
-
-        if (bufLen - lenUnits < 2)
-        {
-            res = 0;
-            goto buf_full;
-        }
-        else if (!nextChar(chr))
-        {
-            /* TODO error */
-            goto fail_syntax;
-        }
-
-        switch (state)
-        {
-        case INITIAL:
-
-            remFields--;
-
-            if (*chr == L'"')
-            {
-                state = QUOTED;
-                continue;
-            }
-
-            state = UNQUOTED;
-
-        /* Fall through to UNQUOTED to process the first char */
-
-        case UNQUOTED:
-            switch (*chr)
-            {
-            case L',':
-                if (!remFields)
-                {
-                    /* TODO error */
-                    goto fail_syntax;
-                }
-
-                goto next_field;
-            case L'\r':
-                state = EOL;
-                continue;
-            case L'\n':
-                /* TODO error */
-                goto fail_syntax;
-            case L'"':
-                /* TODO error */
-                goto fail_syntax;
-            }
-
-            break;
-
-        case QUOTED:
-            switch (*chr)
-            {
-            case L'\r':
-                state = QUOTED_EOL;
-                break;
-            case L'\n':
-                /* TODO error */
-                goto fail_syntax;
-            case L'"':
-                state = QUOTE;
-                continue;
-            }
-
-            break;
-
-        case EOL:
-            if (*chr != L'\n')
-            {
-                /* TODO error */
-                goto fail_syntax;
-            }
-            else if (remFields)
-            {
-                /* TODO error */
-                goto fail_syntax;
-            }
-
-            goto next_record;
-
-        case QUOTED_EOL:
-            if (*chr != L'\n')
-            {
-                /* TODO error */
-                goto fail_syntax;
-            }
-
-            state = QUOTED;
-            break;
-
-        case QUOTE:
-            switch (*chr)
-            {
-            case L',':
-                if (!remFields)
-                {
-                    /* TODO error */
-                    goto fail_syntax;
-                }
-
-                goto next_field;
-            case L'\r':
-                state = EOL;
-                continue;
-            case L'\n':
-                /* TODO error */
-                goto fail_syntax;
-            case L'"':
-                state = QUOTED;
-                break;
-            }
-
-            /* TODO error */
-            goto fail_syntax;
-        }
-
-        if (IS_HIGH_SURROGATE(*chr))
-        {
-            chr += 2;
-            lenUnits += 2;
-        }
-        else
-        {
-            chr++;
-            lenUnits++;
-        }
-
-        lenChars++;
-    }
-
-next_record:
-    remFields = numFields;
-next_field:
-    state = INITIAL;
-eof:
-    res = 1;
-buf_full:
-    *numUnits = lenUnits;
-    *numChars = lenChars;
-    return res;
-
-fail_syntax:
-fail_bytes:
-    return -1;
-}
-
-wchar_t* csvGetString(size_t minChars, size_t maxChars)
-{
-    wchar_t *buf;
-    wchar_t *str;
-    wchar_t *tmp;
-    size_t bufLen;
-    size_t bufPos;
-    size_t chrLen;
-    size_t numUnits;
-    size_t numChars;
-    int res;
-
-    if (!(buf = allocStr(STRING_ALLOC_STEP)))
+    if (!(byteBuf = allocMem(byteBufSize)))
     {
         /* TODO error */
         goto fail_alloc;
     }
 
-    bufLen = STRING_ALLOC_STEP;
-    bufPos = 0;
-    chrLen = 0;
-    str = buf;
+    fieldCnt = _fieldCnt;
+    remFieldCnt = fieldCnt;
+    state = ST_INITIAL;
 
-    for (;; )
+    if (readBytes())
     {
-        if ((res = csvGetChars(str,
-                               bufLen - bufPos - 1,
-                               &numUnits,
-                               &numChars)) == -1)
-        {
-            /* TODO error */
-            goto fail_chars;
-        }
+        /* TODO error */
+        goto fail_bytes;
+    }
+    if (header && readHeader())
+    {
+        /* TODO error */
+        goto fail_header;
+    }
 
-        chrLen += numChars;
-        if (chrLen > maxChars)
-        {
-            /* TODO error */
-            goto fail_max_chars;
-        }
+    return 0;
 
-        str += numUnits;
-        bufPos += numUnits;
+fail_header:
+fail_bytes:
+    freeMem(byteBuf);
+fail_alloc:
+    CloseHandle(file);
+fail_file:
+    return 1;
+}
 
-        if (res)
-        {
-            break;
-        }
-        else if (bufPos >= bufLen - 2)
+int csvCreate(wchar_t *path, size_t _fieldCnt)
+{
+    assert(path);
+    assert(_fieldCnt);
+    assert(BYTE_BUF_SIZE_WRITE <= SIZE_MAX);
+
+    file = CreateFileW(path,
+                       GENERIC_WRITE,
+                       0, /* Other procs cannot open the file */
+                       NULL,
+                       CREATE_ALWAYS,
+                       FILE_ATTRIBUTE_NORMAL,
+                       NULL);
+
+    if (file == INVALID_HANDLE_VALUE)
+    {
+        /* TODO error */
+        goto fail_file;
+    }
+
+    byteBufSize = BYTE_BUF_SIZE_WRITE;
+
+    if (!(byteBuf = allocMem(byteBufSize)))
+    {
+        /* TODO error */
+        goto fail_alloc;
+    }
+
+    byteBufLen = byteBufSize;
+    byteBufPtr = byteBuf;
+    fieldCnt = _fieldCnt;
+    remFieldCnt = fieldCnt;
+
+    return 0;
+
+fail_alloc:
+    freeMem(byteBuf);
+fail_file:
+    return 1;
+}
+
+int csvFlush(void)
+{
+    if (byteBufLen < byteBufSize && writeBytes())
+    {
+        /* TODO error */
+        return 1;
+    }
+
+    return 0;
+}
+
+void csvClose(void)
+{
+    freeMem(byteBuf);
+    CloseHandle(file);
+}
+
+int csvHasData(void)
+{
+    return byteBufLen;
+}
+
+wchar_t* csvReadString(size_t *unitCnt, size_t *charCnt)
+{
+    wchar_t chr[2];
+    wchar_t *buf;
+    wchar_t *tmp;
+    size_t bufLen;
+    size_t bufPos;
+    size_t strLen;
+    int res;
+
+    assert(unitCnt);
+    assert(charCnt);
+    assert(BUFLEN(chr) == 2);
+    assert(STRING_ALLOC_STEP >= 2);
+    assert(STRING_ALLOC_STEP <= SIZE_MAX);
+
+    bufLen = STRING_ALLOC_STEP;
+
+    if (!(buf = allocStr(bufLen)))
+    {
+        /* TODO error */
+        goto fail_alloc;
+    }
+
+    bufPos = 0;
+    strLen = 0;
+
+    while ((res = readChar(chr)) > 0)
+    {
+        if (bufPos > bufLen - res)
         {
             if (bufLen <= SIZE_MAX - STRING_ALLOC_STEP)
                 bufLen += STRING_ALLOC_STEP;
@@ -372,138 +236,84 @@ wchar_t* csvGetString(size_t minChars, size_t maxChars)
             }
 
             buf = tmp;
-            str = tmp + bufPos;
         }
+
+        if (res == 1)
+            buf[bufPos++] = *chr;
+        else
+        {
+            buf[bufPos++] = chr[0];
+            buf[bufPos++] = chr[1];
+        }
+
+        strLen++;
     }
 
-    if (chrLen < minChars)
+    if (res < 0)
     {
         /* TODO error */
-        goto fail_min_chars;
+        goto fail_char;
     }
 
-    *str = L'\0';
-
-    if (!(tmp = reallocStr(buf, bufPos + 1)))
+    if (bufPos < bufLen - 1)
     {
-        /* TODO warning */
-        return buf;
+        if (!(tmp = reallocStr(buf, bufPos + 1)))
+        {
+            /* TODO warning */
+        }
+        else
+            buf = tmp;
+    }
+    else if (bufPos == bufLen)
+    {
+        if (bufPos == SIZE_MAX)
+        {
+            /* TODO error */
+            goto fail_too_long;
+        }
+        if (!(tmp = reallocStr(buf, bufPos + 1)))
+        {
+            /* TODO error */
+            goto fail_realloc;
+        }
+
+        buf = tmp;
     }
 
-    return tmp;
+    buf[bufPos] = L'\0';
+    *unitCnt = bufPos;
+    *charCnt = strLen;
 
-fail_min_chars:
+    return buf;
+
 fail_realloc:
 fail_too_long:
-fail_max_chars:
-fail_chars:
+fail_char:
     freeStr(buf);
 fail_alloc:
     return NULL;
 }
 
-int csvGetValue(wchar_t *buf, size_t maxLen)
+int csvReadBool(void)
 {
-    wchar_t *ptr;
-    wchar_t chrBuf[CHAR_BUF_SIZE];
-    wchar_t *chrPtr;
-    size_t numChars;
-    size_t numUnits;
-    int step;
-    int res;
+    wchar_t buf[BUF_LEN_FOR_CHAR_COUNT(MAX_BOOL_CHARS)];
 
-    ptr = buf;
-    step = 0;
-
-    do
-    {
-        if ((res = csvGetChars(chrBuf,
-                               BUFLEN(chrBuf),
-                               &numUnits,
-                               &numChars)) == -1)
-        {
-            /* TODO error */
-            return 1;
-        }
-
-        chrPtr = chrBuf;
-
-        while (numChars--)
-        {
-            switch (step)
-            {
-            case 0:
-                if (*chrPtr == L' ' || *chrPtr == L'\t')
-                {
-                    chrPtr++;
-                    continue;
-                }
-
-                step++;
-                break;
-
-            case 1:
-                if (*chrPtr != L' ' && *chrPtr != L'\t')
-                    break;
-
-                chrPtr++;
-                step++;
-                continue;
-
-            case 2:
-                if (*chrPtr != L' ' && *chrPtr != L'\t')
-                {
-                    /* TODO error */
-                    return 1;
-                }
-
-                chrPtr++;
-                continue;
-            }
-
-            if (!maxLen--)
-            {
-                /* TODO error */
-                return 1;
-            }
-            else if (IS_HIGH_SURROGATE(*chrPtr))
-            {
-                *(ptr + 0) = *(chrPtr + 0);
-                *(ptr + 1) = *(chrPtr + 1);
-                chrPtr += 2;
-                ptr += 2;
-            }
-            else
-                *ptr++ = *chrPtr++;
-        }
-    }
-    while (!res);
-
-    *ptr = L'\0';
-
-    return 0;
-}
-
-int csvGetBool(void)
-{
-    wchar_t val[BUF_LEN_FROM_MIN_CHAR_COUNT(MAX_BOOL_CHARS)];
-
-    if (csvGetValue(val, BUF_LEN_TO_MIN_CHAR_COUNT(val)))
+    if (readValue(buf, BUFLEN(buf)))
     {
         /* TODO error */
-        return -1;
+        return 1;
     }
-    else if (!_wcsicmp(val, L"0")
-             || !_wcsicmp(val, L"off")
-             || !_wcsicmp(val, L"no")
-             || !_wcsicmp(val, L"false"))
+    if (!_wcsicmp(buf, L"0")
+        || !_wcsicmp(buf, L"off")
+        || !_wcsicmp(buf, L"no")
+        || !_wcsicmp(buf, L"false"))
     {
         return 0;
     }
-    else if (!_wcsicmp(val, L"1")
-             || !_wcsicmp(val, L"on")
-             || !_wcsicmp(val, L"yes")
-             || !_wcsicmp(val, L"true"))
+    if (!_wcsicmp(buf, L"1")
+        || !_wcsicmp(buf, L"on")
+        || !_wcsicmp(buf, L"yes")
+        || !_wcsicmp(buf, L"true"))
     {
         return 1;
     }
@@ -512,12 +322,12 @@ int csvGetBool(void)
     return -1;
 }
 
-int csvGetEvent(unsigned int *event)
+int csvReadEvent(unsigned int *event)
 {
-    wchar_t val[BUF_LEN_FROM_MIN_CHAR_COUNT(MAX_EVENT_CHARS)];
+    wchar_t val[BUF_LEN_FOR_CHAR_COUNT(MAX_EVENT_CHARS)];
     size_t ii;
 
-    if (csvGetValue(val, BUF_LEN_TO_MIN_CHAR_COUNT(val)))
+    if (readValue(val, BUFLEN(val)))
     {
         /* TODO error */
         return 1;
@@ -538,38 +348,306 @@ int csvGetEvent(unsigned int *event)
     return 1;
 }
 
-bool readHeader(void)
+int readHeader(void)
 {
-    wchar_t buf[512];
-    size_t numUnits;
-    size_t numChars;
-    size_t ii;
+    wchar_t chr[2];
     int res;
+    unsigned int ii;
 
-    for (ii = 0; ii < numFields; ii++)
+    assert(BUFLEN(chr) == 2);
+
+    for (ii = 0; ii < fieldCnt; ii++)
     {
-        do
+        while ((res = readChar(chr)) > 0)
+            ;
+
+        if (res < 0)
         {
-            if ((res = csvGetChars(buf,
-                                   BUFLEN(buf),
-                                   &numUnits,
-                                   &numChars)) == -1)
-            {
-                /* TODO error */
-                return false;
-            }
+            /* TODO error */
+            return 1;
         }
-        while (!res);
     }
 
-    return true;
+    return 0;
 }
 
-bool nextChar(wchar_t *chr)
+int csvWriteString(const wchar_t *str)
+{
+    return writeValue(str, 1);
+}
+
+int csvWriteBool(int val, BoolOutputMode mode)
+{
+    wchar_t *str;
+
+    switch (mode)
+    {
+    case BOOL_TRUE_FALSE:
+        str = BOOL_TO_STR_TRUE_FALSE(val);
+        break;
+    case BOOL_YES_NO:
+        str = BOOL_TO_STR_YES_NO(val);
+        break;
+    case BOOL_ON_OFF:
+        str = BOOL_TO_STR_ON_OFF(val);
+        break;
+    case BOOL_ONE_ZERO:
+        str = BOOL_TO_STR_ONE_ZERO(val);
+        break;
+    default:
+        /* TODO error */
+        return 1;
+    }
+
+    return writeValue(str, 0);
+}
+
+int csvWriteEvent(unsigned int event)
+{
+    return writeValue(getEventMapEntry(event)->name, 0);
+}
+
+int readValue(wchar_t *buf, size_t bufLen)
+{
+    wchar_t chr[2];
+    wchar_t *ptr;
+    int step;
+    int res;
+
+    assert(buf);
+    assert(bufLen);
+    assert(BUFLEN(chr) == 2);
+
+    ptr = buf;
+    step = 0;
+
+    while ((res = readChar(chr)) > 0)
+    {
+        switch (step)
+        {
+        case 0:
+            if (IS_SPACE(*chr))
+                continue;
+
+            step++;
+            break;
+
+        case 1:
+            if (!IS_SPACE(*chr))
+                break;
+
+            step++;
+            continue;
+
+        case 2:
+            if (!IS_SPACE(*chr))
+            {
+                /* TODO error */
+                return 1;
+            }
+
+            continue;
+        }
+
+        if (IS_HIGH_SURROGATE(*chr))
+        {
+            if (bufLen < 3)
+            {
+                /* TODO error */
+                return 1;
+            }
+
+            *ptr++ = chr[0];
+            *ptr++ = chr[1];
+            bufLen -= 2;
+        }
+        else
+        {
+            if (bufLen < 2)
+            {
+                /* TODO error */
+                return 1;
+            }
+
+            *ptr++ = *chr;
+            bufLen--;
+        }
+    }
+
+    if (res < 0)
+    {
+        /* TODO error */
+        return 1;
+    }
+
+    *ptr = L'\0';
+    return 0;
+}
+
+int readChar(wchar_t *chr)
+{
+    assert(chr);
+
+    while (byteBufLen)
+    {
+        if (nextChar(chr))
+        {
+            /* TODO error */
+            goto fail_char;
+        }
+
+        switch (state)
+        {
+        case ST_INITIAL:
+
+            remFieldCnt--;
+
+            if (*chr == L'"')
+            {
+                state = ST_QUOTED;
+                continue;
+            }
+
+            state = ST_UNQUOTED;
+
+        /* Fall through to ST_UNQUOTED directly to process the same char, no
+        ** need to waste an iteration.
+        */
+
+        case ST_UNQUOTED:
+            switch (*chr)
+            {
+            case L',':
+                if (!remFieldCnt)
+                {
+                    /* TODO error */
+                    goto fail_syntax;
+                }
+
+                goto next_field;
+            case L'\r':
+                state = ST_EOL;
+                continue;
+            case L'\n':
+                /* TODO error */
+                goto fail_syntax;
+            case L'"':
+                /* TODO error */
+                goto fail_syntax;
+            }
+
+            break;
+
+        case ST_QUOTED:
+            switch (*chr)
+            {
+            case L'\r':
+                state = ST_QUOTED_EOL;
+                break;
+            case L'\n':
+                /* TODO error */
+                goto fail_syntax;
+            case L'"':
+                state = ST_QUOTE;
+                continue;
+            }
+
+            break;
+
+        case ST_EOL:
+            if (*chr != L'\n')
+            {
+                /* TODO error */
+                goto fail_syntax;
+            }
+            if (remFieldCnt)
+            {
+                /* TODO error */
+                goto fail_syntax;
+            }
+
+            goto next_record;
+
+        case ST_QUOTED_EOL:
+            if (*chr != L'\n')
+            {
+                /* TODO error */
+                goto fail_syntax;
+            }
+
+            state = ST_QUOTED;
+            break;
+
+        case ST_QUOTE:
+            switch (*chr)
+            {
+            case L',':
+                if (!remFieldCnt)
+                {
+                    /* TODO error */
+                    goto fail_syntax;
+                }
+
+                goto next_field;
+            case L'\r':
+                state = ST_EOL;
+                continue;
+            case L'\n':
+                /* TODO error */
+                goto fail_syntax;
+            case L'"':
+                state = ST_QUOTED;
+                break;
+            }
+
+            /* TODO error */
+            goto fail_syntax;
+        }
+
+        return IS_HIGH_SURROGATE(*chr) ? 2 : 1;
+    }
+
+    switch (state)
+    {
+    case ST_QUOTED:
+        /* TODO error */
+        goto fail_syntax;
+    case ST_QUOTED_EOL:
+        /* TODO error */
+        goto fail_syntax;
+    case ST_EOL:
+        /* TODO error */
+        goto fail_syntax;
+    case ST_INITIAL:
+    case ST_UNQUOTED:
+    case ST_QUOTE:
+        if (remFieldCnt)
+        {
+            /* TODO error */
+            goto fail_syntax;
+        }
+    }
+
+    return 0;
+
+next_record:
+    remFieldCnt = fieldCnt;
+next_field:
+    state = ST_INITIAL;
+    return 0;
+
+fail_syntax:
+fail_char:
+    return -1;
+}
+
+int nextChar(wchar_t *chr)
 {
     unsigned char unit;
     unsigned char seqLen;
     unsigned long code;
+
+    assert(chr);
 
     unit = *byteBufPtr++;
     byteBufLen--;
@@ -577,23 +655,30 @@ bool nextChar(wchar_t *chr)
     if((unit & 0xC0) == 0x80 || (unit & 0xF8) == 0xF8)
     {
         /* TODO error */
-        return false;
+        return 1;
     }
-    else if (UTF8_CTRL_CODE[unit])
+    if (UTF8_CTRL_CODE[unit])
     {
         /* TODO error */
-        return false;
+        return 1;
     }
-    else if (!(unit & 0x80))
+    if (!(unit & 0x80))
     {
         *chr = unit;
-        return true;
+
+        if (!byteBufLen && readBytes())
+        {
+            /* TODO error */
+            return 1;
+        }
+
+        return 0;
     }
 
     seqLen = UTF8_SEQ_LEN[unit];
     code = unit & ((1 << (6 - seqLen)) - 1);
 
-    if (seqLen <= byteBufLen)
+    if (seqLen < byteBufLen)
     {
         switch (seqLen)
         {
@@ -609,31 +694,47 @@ bool nextChar(wchar_t *chr)
     }
     else
     {
-        while (seqLen--)
+        switch (byteBufLen)
         {
-            if (!byteBufLen)
-            {
-                if (!readBytes())
-                {
-                    /* TODO error */
-                    return false;
-                }
-                else if (eof)
-                {
-                    /* TODO error */
-                    return false;
-                }
-            }
-
+        case 3:
             code = (code << 6) | (*byteBufPtr++ & 0x3F);
-            byteBufLen--;
+        case 2:
+            code = (code << 6) | (*byteBufPtr++ & 0x3F);
+        case 1:
+            code = (code << 6) | (*byteBufPtr++ & 0x3F);
         }
+
+        seqLen -= (unsigned char) byteBufLen; /* We know byteLen <= seqLen */
+        byteBufLen = 0;
+
+        if (readBytes())
+        {
+            /* TODO error */
+            return 1;
+        }
+        if (byteBufLen < seqLen)
+        {
+            /* TODO error */
+            return 1;
+        }
+
+        switch (seqLen)
+        {
+        case 3:
+            code = (code << 6) | (*byteBufPtr++ & 0x3F);
+        case 2:
+            code = (code << 6) | (*byteBufPtr++ & 0x3F);
+        case 1:
+            code = (code << 6) | (*byteBufPtr++ & 0x3F);
+        }
+
+        byteBufLen -= seqLen;
     }
 
     if ((code & 0xF800) == 0xD800)
     {
         /* TODO error */
-        return false;
+        return 1;
     }
 
     if (code < 0x10000)
@@ -643,26 +744,192 @@ bool nextChar(wchar_t *chr)
     else
     {
         code -= 0x10000;
-        *(chr + 0) = (wchar_t) (0xD800 + (code >> 10));
-        *(chr + 1) = (wchar_t) (0xDC00 + (code & 0x3FF));
+        chr[0] = (wchar_t) (0xD800 + (code >> 10));
+        chr[1] = (wchar_t) (0xDC00 + (code & 0x3FF));
     }
 
-    return true;
+    return 0;
 }
 
-bool readBytes(void)
+int readBytes(void)
 {
-    DWORD numBytes;
+    DWORD byteCnt;
 
-    if (!ReadFile(file, byteBuf, BYTE_BUF_SIZE, &numBytes, NULL))
+    assert(byteBufSize <= SIZE_MAX);
+    assert(byteBufSize < (DWORD) -1);
+
+    if (!ReadFile(file, byteBuf, byteBufSize, &byteCnt, NULL))
     {
         /* TODO error */
-        return false;
+        return 1;
     }
 
     byteBufPtr = byteBuf;
-    byteBufLen = numBytes;
-    eof = !numBytes;
+    byteBufLen = byteCnt;
 
-    return true;
+    return 0;
+}
+
+int writeValue(const wchar_t *str, bool escape)
+{
+    unsigned long code;
+    unsigned char unitCnt;
+
+    assert(str);
+
+    if (escape && writeByte(CHR_QUOTE))
+    {
+        /* TODO error */
+        return 1;
+    }
+
+    while (*str)
+    {
+        if (*str == L'"')
+        {
+            if (!escape)
+            {
+                /* TODO error */
+                return 1;
+            }
+            if (writeByte(CHR_QUOTE))
+            {
+                /* TODO error */
+                return 1;
+            }
+
+            code = *str++;
+            unitCnt = 1;
+        }
+        else if (*str <= 0xFF)
+        {
+            if (UTF8_CTRL_CODE[*str])
+            {
+                /* TODO error */
+                return 1;
+            }
+
+            code = *str++;
+            unitCnt = 1;
+        }
+        else if (IS_HIGH_SURROGATE(*str))
+        {
+            code = (*str++ - 0xD800) << 10;
+            code |= *str++ - 0xDC00;
+            unitCnt = 4;
+        }
+        else
+        {
+            code = *str++;
+            unitCnt = 1 + (code > 0x007F) + (code > 0x07FF);
+        }
+
+#define WRITE_LEADING_FAILED(len)                              \
+    writeByte((unsigned char) ((0xFF ^ ((1 << (9 - len)) - 1)) \
+                               + (code >> (6 * (len - 1)))))
+
+#define WRITE_CONT_FAILED(pos) \
+    writeByte(0x80 + ((code >> (6 * (pos - 1))) & 0x3F))
+
+        switch (unitCnt)
+        {
+        case 4:
+            if (WRITE_LEADING_FAILED(4)
+                || WRITE_CONT_FAILED(3)
+                || WRITE_CONT_FAILED(2)
+                || WRITE_CONT_FAILED(1))
+            {
+                /* TODO error */
+                return 1;
+            }
+
+            break;
+        case 3:
+            if (WRITE_LEADING_FAILED(3)
+                || WRITE_CONT_FAILED(2)
+                || WRITE_CONT_FAILED(1))
+            {
+                /* TODO error */
+                return 1;
+            }
+
+            break;
+        case 2:
+            if (WRITE_LEADING_FAILED(2) || WRITE_CONT_FAILED(1))
+            {
+                /* TODO error */
+                return 1;
+            }
+
+            break;
+        case 1:
+            if (writeByte((unsigned char) code))
+            {
+                /* TODO error */
+                return 1;
+            }
+
+            break;
+        }
+    }
+
+    if (remFieldCnt > 1)
+    {
+        if ((escape && writeByte(CHR_QUOTE))
+            || writeByte(CHR_COMMA))
+        {
+            /* TODO error */
+            return 1;
+        }
+
+        remFieldCnt--;
+    }
+    else
+    {
+        if ((escape && writeByte(CHR_QUOTE))
+            || writeByte(CHR_CR)
+            || writeByte(CHR_LF))
+        {
+            /* TODO error */
+            return 1;
+        }
+
+        remFieldCnt = fieldCnt;
+    }
+
+    return 0;
+}
+
+int writeByte(unsigned char byte)
+{
+    if (!byteBufLen && writeBytes())
+    {
+        /* TODO error */
+        return 1;
+    }
+
+    *byteBufPtr++ = byte;
+    byteBufLen--;
+
+    return 0;
+}
+
+int writeBytes(void)
+{
+    DWORD written;
+
+    assert(byteBufSize <= SIZE_MAX);
+    assert(byteBufSize < (DWORD) -1);
+    assert(byteBufLen < byteBufSize);
+
+    if (!WriteFile(file, byteBuf, byteBufSize - byteBufLen, &written, NULL))
+    {
+        /* TODO error */
+        return 1;
+    }
+
+    byteBufLen = written;
+    byteBufPtr = byteBuf;
+
+    return 0;
 }

@@ -53,6 +53,22 @@ const EventMapEntry eventMap[] =
 
 const size_t eventMapSize = BUFLEN(eventMap);
 
+int getEventMapEntryIndex(unsigned int event, size_t *index)
+{
+    size_t ii;
+
+    for (ii = 0; ii < eventMapSize; ii++)
+    {
+        if (eventMap[ii].event == event)
+        {
+            *index = ii;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 const EventMapEntry* getEventMapEntry(unsigned int event)
 {
     size_t ii;

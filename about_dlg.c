@@ -24,30 +24,39 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "Notepad_plus_msgs.h"
 
 /** TODO doc */
-#define LICENSE_FILENAME PLUGIN_NAME L"_license.txt"
+#define PLUGIN_LICENSE_PATH L"doc\\" PLUGIN_NAME L"_license.txt"
 
 /** TODO doc */
-#define FOCUS_MARGIN 2
+#define ICONS_LICENSE_PATH L"doc\\" L"icon_set_license.txt"
+
+/** TODO doc */
+#define URL_AHASOFT L"http://www.aha-soft.com/"
+
+/** TODO doc */
+#define URL_ICON_SET \
+    L"http://www.small-icons.com/packs/16x16-free-application-icons.htm"
 
 static void layoutDlg(void);
 static INT_PTR CALLBACK aboutDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
-static LONG getContentWidth(HWND ctrl);
 static void onInitDlg(HWND dlg);
-static void onDrawLicenseBtn(DRAWITEMSTRUCT *dis);
-static void onOpenLicense(void);
+static void onDrawItem(DRAWITEMSTRUCT *dis);
+static void onOpenPluginLicense(void);
+static void onOpenIconsLicense(void);
+static void layoutLine(LONG clientWidth, int *ctrlIds);
+static LONG getContentWidth(HWND ctrl);
+static void openDocument(const wchar_t *relativePath);
+static void openUrl(const wchar_t *url);
 
 static HWND aboutDlg;
-static HWND txtLicense;
-static HWND btnLicense;
 static HCURSOR handCursor;
 static HFONT linkFont;
 
 void openAboutDlg(void)
 {
-    int ret = DialogBox(getPluginInstance(),
-                        MAKEINTRESOURCE(IDD_ABOUT),
-                        getNppWnd(),
-                        aboutDlgProc);
+    INT_PTR ret;
+
+    ret = DialogBox(getPluginInstance(), MAKEINTRESOURCE(IDD_ABOUT),
+                    getNppWnd(), aboutDlgProc);
     if (ret == -1)
     {
         /* TODO error */
@@ -55,23 +64,221 @@ void openAboutDlg(void)
     }
 }
 
+INT_PTR CALLBACK aboutDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+{
+    switch (msg)
+    {
+    case WM_INITDIALOG:
+        onInitDlg(dlg);
+        return FALSE;
+
+    case WM_DESTROY:
+        if (linkFont)
+            DeleteObject(linkFont);
+
+        DLGPROC_RESULT(dlg, 0);
+
+    case WM_DRAWITEM:
+        onDrawItem((DRAWITEMSTRUCT*) lp);
+        DLGPROC_RESULT(dlg, TRUE);
+
+    case WM_SETCURSOR:
+        /* We know BS_OWNERDRAW != SS_OWNERDRAW. */
+
+        if ((HWND) wp != aboutDlg
+            && GetWindowLong((HWND) wp, GWL_STYLE) & BS_OWNERDRAW)
+        {
+            SetCursor(handCursor);
+            DLGPROC_RESULT(dlg, TRUE);
+        }
+
+        break;
+
+    case WM_CLOSE:
+        EndDialog(dlg, IDCANCEL);
+        DLGPROC_RESULT(dlg, 0);
+
+    case WM_SYSCOMMAND:
+        if (wp == SC_CLOSE)
+        {
+            EndDialog(dlg, IDCLOSE);
+            DLGPROC_RESULT(dlg, 0);
+        }
+        break;
+
+    case WM_COMMAND:
+        switch (LOWORD(wp))
+        {
+        case IDOK:
+        case IDCANCEL:
+            EndDialog(dlg, LOWORD(wp));
+            DLGPROC_RESULT(dlg, 0);
+        case IDC_BT_WEB_PAGE:
+            openUrl(PLUGIN_PAGE);
+            DLGPROC_RESULT(dlg, 0);
+        case IDC_BT_LICENSE:
+            onOpenPluginLicense();
+            DLGPROC_RESULT(dlg, 0);
+        case IDC_BT_ICONS_SET:
+            openUrl(URL_ICON_SET);
+            DLGPROC_RESULT(dlg, 0);
+        case IDC_BT_ICONS_AHASOFT:
+            openUrl(URL_AHASOFT);
+            DLGPROC_RESULT(dlg, 0);
+        case IDC_BT_ICONS_LICENSE:
+            onOpenIconsLicense();
+            DLGPROC_RESULT(dlg, 0);
+        }
+
+        break;
+    } /* switch (msg) */
+
+    return FALSE;
+}
+
+void onInitDlg(HWND dlg)
+{
+    HFONT font;
+    LOGFONT lf;
+
+    aboutDlg = dlg;
+
+    /* Not set in the RC file because of a weird resource compiler bug when
+    ** concatenating strings in the DIALOG template (only MSVC).
+    */
+
+    SetWindowText(GetDlgItem(dlg, IDC_ST_VERSION),
+                  PLUGIN_NAME L" " VERSION_STRING);
+
+    SetWindowText(dlg, PLUGIN_NAME L": About");
+
+    handCursor = LoadCursor(NULL, IDC_HAND);
+
+    font = (HFONT) SendMessage(aboutDlg, WM_GETFONT, 0, 0);
+    GetObject(font, sizeof(LOGFONT), &lf);
+    lf.lfUnderline = TRUE;
+
+    if (!(linkFont = CreateFontIndirect(&lf)))
+    {
+        /* TODO error */
+        EndDialog(dlg, 0);
+        return;
+    }
+
+#define SET_LINK_FONT(id)                                                \
+    SendMessage(GetDlgItem(aboutDlg, id), WM_SETFONT, (WPARAM) linkFont, \
+                (LPARAM) MAKELPARAM(TRUE, 0))                            \
+
+    SET_LINK_FONT(IDC_BT_WEB_PAGE);
+    SET_LINK_FONT(IDC_BT_LICENSE);
+    SET_LINK_FONT(IDC_BT_ICONS_SET);
+    SET_LINK_FONT(IDC_BT_ICONS_AHASOFT);
+    SET_LINK_FONT(IDC_BT_ICONS_LICENSE);
+
+    layoutDlg();
+    centerWndToParent(dlg);
+    SetFocus(GetDlgItem(dlg, IDOK));
+}
+
+void onDrawItem(DRAWITEMSTRUCT *dis)
+{
+    HWND ctrl;
+    HDC dc;
+    RECT *rc;
+    RECT rc1;
+    wchar_t content[256];
+    COLORREF prevClr;
+
+    ctrl = dis->hwndItem;
+    dc = dis->hDC;
+    rc = &dis->rcItem;
+
+    CopyRect(&rc1, rc);
+    rc1.top += 1;
+    rc1.bottom -= 1;
+
+    FillRect(dc, rc, (HBRUSH) (COLOR_3DFACE + 1));
+    GetWindowTextW(ctrl, content, BUFLEN(content));
+
+    if (dis->CtlType == ODT_BUTTON)
+    {
+        prevClr = SetTextColor(dc, RGB(0, 0, 255));
+        DrawTextW(dc, content, wcslen(content), &rc1,
+                  DT_CENTER | DT_SINGLELINE);
+        SetTextColor(dc, prevClr);
+    }
+    else
+    {
+        DrawTextW(dc, content, wcslen(content), &rc1,
+                  DT_CENTER | DT_SINGLELINE);
+    }
+
+    if (dis->itemState & ODS_FOCUS)
+        DrawFocusRect(dc, rc);
+}
+
+void onOpenPluginLicense(void)
+{
+    openDocument(PLUGIN_LICENSE_PATH);
+}
+
+void onOpenIconsLicense(void)
+{
+    openDocument(ICONS_LICENSE_PATH);
+}
+
 void layoutDlg(void)
 {
     RECT rc;
-    LONG widths[2];
-    LONG left;
+    LONG clientWidth;
 
     GetClientRect(aboutDlg, &rc);
-    widths[0] = getContentWidth(txtLicense);
-    widths[1] = getContentWidth(btnLicense);
-    left = (rc.right - rc.left) / 2 - (widths[0] + widths[1]) / 2;
+    clientWidth = rc.right - rc.left;
 
-    GetWindowRect(txtLicense, &rc);
-    MapWindowPoints(NULL, aboutDlg, (POINT*) &rc, 2);
-    setWndPos(txtLicense, left, rc.top);
-    setWndSize(txtLicense, widths[0], rc.bottom - rc.top);
-    setWndPos(btnLicense, left + widths[0] - FOCUS_MARGIN, rc.top);
-    setWndSize(btnLicense, widths[1] + FOCUS_MARGIN * 2, rc.bottom - rc.top);
+    layoutLine(clientWidth, (int[]) {IDC_ST_VERSION, -1 });
+    layoutLine(clientWidth, (int[]) {IDC_ST_COPYRIGHT, -1});
+    layoutLine(clientWidth, (int[]) {IDC_BT_WEB_PAGE, -1});
+    layoutLine(clientWidth, (int[]) {IDC_ST_LICENSE, IDC_BT_LICENSE, -1});
+    layoutLine(clientWidth, (int[]) {IDC_ST_ICONS_USING, IDC_BT_ICONS_SET, -1});
+    layoutLine(clientWidth, (int[]) {IDC_ST_ICONS_BY, IDC_BT_ICONS_AHASOFT,
+                                     IDC_ST_ICONS_DISTRIBUTED, -1});
+    layoutLine(clientWidth, (int[]) {IDC_BT_ICONS_LICENSE, -1});
+}
+
+void layoutLine(LONG clientWidth, int *ctrlIds)
+{
+    int *ctrlId;
+    HWND ctrl;
+    RECT rc;
+    LONG pos;
+    LONG width;
+    LONG lineWidth;
+    bool url;
+
+    lineWidth = 0;
+
+    for (ctrlId = ctrlIds; *ctrlId != -1; ctrlId++)
+    {
+        ctrl = GetDlgItem(aboutDlg, *ctrlId);
+        /* We know BS_OWNERDRAW != SS_OWNERDRAW. */
+        url = GetWindowLong(ctrl, GWL_STYLE) & BS_OWNERDRAW;
+        width = getContentWidth(ctrl) + url * 2;
+        GetWindowRect(ctrl, &rc);
+        setWndSize(ctrl, width, rc.bottom - rc.top);
+        lineWidth += width;
+    }
+
+    pos = clientWidth / 2 - lineWidth / 2;
+
+    for (ctrlId = ctrlIds; *ctrlId != -1; ctrlId++)
+    {
+        ctrl = GetDlgItem(aboutDlg, *ctrlId);
+        GetWindowRect(ctrl, &rc);
+        MapWindowPoints(NULL, aboutDlg, (POINT*) &rc, 2);
+        setWndPos(ctrl, pos, rc.top);
+
+        pos += rc.right - rc.left;
+    }
 }
 
 LONG getContentWidth(HWND ctrl)
@@ -100,123 +307,11 @@ LONG getContentWidth(HWND ctrl)
     return rc.right - rc.left;
 }
 
-INT_PTR CALLBACK aboutDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
-{
-    switch (msg)
-    {
-    case WM_INITDIALOG:
-        onInitDlg(dlg);
-        return FALSE;
-
-    case WM_DESTROY:
-        if (linkFont)
-            DeleteObject(linkFont);
-
-        DLGPROC_RESULT(dlg, 0);
-
-    case WM_DRAWITEM:
-        onDrawLicenseBtn((DRAWITEMSTRUCT*) lp);
-        DLGPROC_RESULT(dlg, TRUE);
-
-    case WM_CLOSE:
-        EndDialog(dlg, IDCANCEL);
-        DLGPROC_RESULT(dlg, 0);
-
-    case WM_SYSCOMMAND:
-        if (wp == SC_CLOSE)
-        {
-            EndDialog(dlg, IDCLOSE);
-            DLGPROC_RESULT(dlg, 0);
-        }
-        break;
-
-    case WM_COMMAND:
-        switch (LOWORD(wp))
-        {
-        case IDOK:
-        case IDCANCEL:
-            EndDialog(dlg, LOWORD(wp));
-            DLGPROC_RESULT(dlg, 0);
-        case IDC_BT_LICENSE:
-            onOpenLicense();
-            DLGPROC_RESULT(dlg, 0);
-        }
-        break;
-    } /* switch (msg) */
-
-    return FALSE;
-}
-
-void onInitDlg(HWND dlg)
-{
-    HFONT font;
-    LOGFONT lf;
-    LONG style;
-
-    aboutDlg = dlg;
-    txtLicense = GetDlgItem(dlg, IDC_ST_LICENSE);
-    btnLicense = GetDlgItem(dlg, IDC_BT_LICENSE);
-
-    /* Not set in the RC file because of a weird resource compiler bug when
-    ** concatenating strings in the DIALOG template (only MSVC).
-    */
-
-    SetWindowText(GetDlgItem(dlg, IDC_ST_VERSION),
-                  PLUGIN_NAME L" " VERSION_STRING);
-
-    SetWindowText(dlg, PLUGIN_NAME L": About");
-
-    handCursor = LoadCursor(NULL, IDC_HAND);
-
-    font = (HFONT) SendMessage(btnLicense, WM_GETFONT, 0, 0);
-    GetObject(font, sizeof(LOGFONT), &lf);
-    lf.lfUnderline = TRUE;
-
-    if (!(linkFont = CreateFontIndirect(&lf)))
-    {
-        /* TODO error */
-        EndDialog(dlg, 0);
-        return;
-    }
-
-    style = GetWindowLongPtr(btnLicense, GWL_STYLE);
-    SetWindowLongPtr(btnLicense, GWL_STYLE, style | BS_OWNERDRAW);
-    SendMessage(btnLicense,
-                WM_SETFONT,
-                (WPARAM) linkFont,
-                (LPARAM) MAKELPARAM(TRUE, 0));
-
-    layoutDlg();
-    centerWndToParent(dlg);
-    SetFocus(GetDlgItem(dlg, IDOK));
-}
-
-void onDrawLicenseBtn(DRAWITEMSTRUCT *dis)
-{
-    HDC dc;
-    RECT *rc;
-    wchar_t content[256];
-    COLORREF prevClr;
-
-    dc = dis->hDC;
-    rc = &dis->rcItem;
-
-    FillRect(dc, rc, (HBRUSH) (COLOR_3DFACE + 1));
-    GetWindowTextW(btnLicense, content, BUFLEN(content));
-    prevClr = SetTextColor(dc, RGB(0, 0, 255));
-    DrawTextW(dc, content, wcslen(content), rc,
-              DT_CENTER | DT_SINGLELINE);
-    SetTextColor(dc, prevClr);
-
-    if (dis->itemState & ODS_FOCUS)
-        DrawFocusRect(dc, rc);
-}
-
-void onOpenLicense(void)
+void openDocument(const wchar_t *relativePath)
 {
     wchar_t *path;
 
-    if (!(path = combinePaths(getPluginDir(), L"doc\\" LICENSE_FILENAME)))
+    if (!(path = combinePaths(getPluginDir(), relativePath)))
     {
         /* TODO error */
         goto fail_path;
@@ -243,7 +338,7 @@ void onOpenLicense(void)
         }
     }
 
-    EndDialog(aboutDlg, IDC_BT_LICENSE);
+    EndDialog(aboutDlg, 1);
 
     if (!sendNppMsg(NPPM_DOOPEN, 0, (LPARAM) path))
     {
@@ -260,4 +355,26 @@ fail_not_found:
     freeStr(path);
 fail_path:
     return;
+}
+
+void openUrl(const wchar_t *url)
+{
+    HINSTANCE res;
+
+    res = ShellExecuteW(NULL,
+                        L"open",
+                        url,
+                        NULL,
+                        NULL,
+                        SW_SHOWNORMAL);
+
+    /* Some more Win32 nonsense. ShellExecute returns a numeric return code as
+    ** an HINSTANCE.
+    */
+
+    if ((int) res <= 32)
+    {
+        errorMsgBox(aboutDlg, L"Failed to open the URL \"%s\".", url);
+        return;
+    }
 }

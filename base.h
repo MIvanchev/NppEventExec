@@ -27,12 +27,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #endif
 #include <windows.h>
 #include <windowsx.h>
+#include <shellapi.h>
 #include <commctrl.h>
-#include <richedit.h>
 #include <tchar.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <limits.h>
+#include <assert.h>
 
 #ifndef SIZE_MAX
 #define SIZE_MAX ((size_t) -1)
@@ -101,12 +103,13 @@ extern "C" {
 
 #define BUFLEN(b) (sizeof(b) / sizeof((b)[0]))
 
-#define BUF_LEN_FROM_MIN_CHAR_COUNT(cnt) ((cnt) * 2 + 1)
-#define BUF_LEN_TO_MIN_CHAR_COUNT(len)   ((BUFLEN(len) - 1) / 2)
+#define BUF_LEN_FOR_CHAR_COUNT(cnt) ((cnt) * sizeof(wchar_t) + 1)
 
 #ifndef IS_HIGH_SURROGATE
 #define IS_HIGH_SURROGATE(code) (((code) & 0xF800) == 0xD800)
 #endif
+
+#define IS_SPACE(chr) ((chr) == L' ' || (chr) == L'\t')
 
 #define STRA(x)  # x
 #define STRW_(x) L ## x
@@ -123,7 +126,7 @@ extern "C" {
     STR(VERSION_MINOR) L"."                    \
     STR(VERSION_PATCH) L".0"
 
-#define DLGPROC_RESULT(dlg, res)                \
+#define DLGPROC_RESULT(dlg, res)                    \
     SetWindowLongPtr((dlg), DWLP_MSGRESULT, (res)); \
     return TRUE;
 
@@ -145,7 +148,7 @@ extern "C" {
 #define BOOL_TO_STR_TRUE_FALSE(val) ((val) ? L"true" : L"false")
 #define BOOL_TO_STR_YES_NO(val)     ((val) ? L"yes" : L"no")
 #define BOOL_TO_STR_ON_OFF(val)     ((val) ? L"on" : L"off")
-#define BOOL_TO_STR_ONE_ZERO(val)   ((val) ? L"1" : "0")
+#define BOOL_TO_STR_ONE_ZERO(val)   ((val) ? L"1" : L"0")
 
 /** The official name of this plugin. */
 #define PLUGIN_NAME L"NppEventExec"
@@ -154,13 +157,16 @@ extern "C" {
 #define PLUGIN_DESCRIPTION L"NppEventExec plugin for Notepad++"
 
 /** A very short description of what this plugin is. */
-#define PLUGIN_COPYRIGHT L"(C) 2016 Mihail Ivanchev"
+#define PLUGIN_COPYRIGHT L"(C) 2016-2017 Mihail Ivanchev"
 
 /** The license this plugin is distributed under. */
 #define PLUGIN_LICENSE L"GNU General Public License, Version 3 (GNU GPLv3)"
 
 /** The (required) name of this plugin's DLL. */
 #define PLUGIN_MODULE PLUGIN_NAME L".dll"
+
+/** The web page of this plugin. */
+#define PLUGIN_PAGE L"https://www.github.com/MIvanchev/NppEventExec"
 
 /** The usual name of the NppExec DLL. */
 #define NPPEXEC_PLUGIN_MODULE L"NppExec.dll"

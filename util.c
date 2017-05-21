@@ -21,7 +21,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "util.h"
 #include <math.h>
 
+typedef struct
+{
+    int count;
+    bool success;
+} GetChildWndCountData;
+
 static LRESULT CALLBACK cbtProc(int code, WPARAM wp, LPARAM lp);
+static BOOL CALLBACK getChildWndCountProc(HWND wnd, LPARAM lp);
 static int msgBoxV(UINT type,
                    HWND parent,
                    const wchar_t *title,
@@ -52,12 +59,12 @@ wchar_t* reallocStr(wchar_t *str, size_t numUnits)
 {
     wchar_t *res;
 
-    if (numUnits > SIZE_MAX / sizeof(wchar_t))
+    if (numUnits > SIZE_MAX / sizeof *res)
     {
         /* TODO error */
         return NULL;
     }
-    else if (!(res = reallocMem(str, sizeof(wchar_t) * numUnits)))
+    else if (!(res = reallocMem(str, numUnits * sizeof *res)))
     {
         /* TODO error */
         return NULL;
@@ -82,7 +89,7 @@ size_t countChars(wchar_t *str)
 
     while (*str != L'\0')
     {
-        str += ((*str & 0xF800) == 0xD800) ? 2 : 1;
+        str += IS_HIGH_SURROGATE(*str) ? 2 : 1;
         cnt++;
     }
 
@@ -155,31 +162,97 @@ void centerWndToParent(HWND wnd)
     MoveWindow(wnd, left, top, width, height, FALSE);
 }
 
-void offsetCtrlPos(HWND parent, HWND ctrl, int dx, int dy)
+int getChildWndCount(HWND wnd)
 {
-    RECT rc;
-    GetWindowRect(ctrl, &rc);
-    MapWindowPoints(NULL, parent, (POINT*) &rc, 2);
-    SetWindowPos(ctrl,
-                 NULL,
-                 rc.left + dx,
-                 rc.top + dy,
-                 0,
-                 0,
-                 SWP_NOSIZE | SWP_NOZORDER);
+    GetChildWndCountData data;
+
+    data.count = 0;
+    data.success = true;
+
+    EnumChildWindows(wnd, getChildWndCountProc, (LPARAM) &data);
+
+    if (!data.success)
+    {
+        /* TODO error */
+        return -1;
+    }
+
+    return data.count;
 }
 
-void offsetCtrlSize(HWND ctrl, int dw, int dh)
+BOOL CALLBACK getChildWndCountProc(HWND wnd, LPARAM lp)
 {
-    RECT rc;
-    GetWindowRect(ctrl, &rc);
-    SetWindowPos(ctrl,
-                 NULL,
-                 0,
-                 0,
-                 rc.right - rc.left + dw,
-                 rc.bottom - rc.top + dh,
-                 SWP_NOMOVE | SWP_NOZORDER);
+    GetChildWndCountData *data;
+
+    data = (GetChildWndCountData*) lp;
+
+    if (data->count == INT_MAX)
+    {
+        /* TODO error */
+        data->success = false;
+        return FALSE;
+    }
+
+    data->count++;
+
+    return TRUE;
+}
+
+void setWndPosDeferred(const SetWindowPosArgs *ops)
+{
+    size_t count;
+    SetWindowPosArgs *op;
+    HDWP hdwp;
+
+    count = 0;
+
+    for (op = (SetWindowPosArgs*) ops; op->hWnd; op++)
+        count++;
+
+    if (count > INT_MAX)
+    {
+        /* TODO error */
+        goto fail;
+    }
+
+    if (!(hdwp = BeginDeferWindowPos(count)))
+    {
+        /* TODO error */
+        goto fail;
+    }
+
+    for (op = (SetWindowPosArgs*) ops; op->hWnd; op++)
+    {
+        if (!(hdwp = DeferWindowPos(hdwp,
+                                    op->hWnd,
+                                    op->hWndInsertAfter,
+                                    op->X,
+                                    op->Y,
+                                    op->cx,
+                                    op->cy,
+                                    op->uFlags)))
+        {
+            /* TODO error */
+            goto fail;
+        }
+    }
+
+    EndDeferWindowPos(hdwp);
+
+    return;
+
+fail:
+
+    for (op = (SetWindowPosArgs*) ops; op->hWnd; op++)
+    {
+        SetWindowPos(op->hWnd,
+                     op->hWndInsertAfter,
+                     op->X,
+                     op->Y,
+                     op->cx,
+                     op->cy,
+                     op->uFlags);
+    }
 }
 
 void addListViewColumns(HWND listView, ListViewColumn *columns)
@@ -252,13 +325,15 @@ int msgBoxV(UINT type,
     if (!parent)
         parent = GetDesktopWindow();
 
-    cbtHook
-        = SetWindowsHookEx(WH_CBT, cbtProc, getPluginInstance(),
-                           GetCurrentThreadId());
+    cbtHook = SetWindowsHookEx(WH_CBT,
+                               cbtProc,
+                               getPluginInstance(),
+                               GetCurrentThreadId());
 
-    res = MessageBox(parent, buf, title, type);
+    res = MessageBoxEx(parent, buf, title, type,
+                       MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US));
 
-    if (!cbtHook)
+    if (cbtHook)
     {
         UnhookWindowsHookEx(cbtHook);
         cbtHook = NULL;

@@ -20,6 +20,17 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 typedef struct
 {
+    HWND hWnd;
+    HWND hWndInsertAfter;
+    int X;
+    int Y;
+    int cx;
+    int cy;
+    UINT uFlags;
+} SetWindowPosArgs;
+
+typedef struct
+{
     int column;
     wchar_t *header;
 } ListViewColumn;
@@ -41,8 +52,8 @@ void freeStr(wchar_t *str);
 wchar_t* getFilename(const wchar_t *path);
 wchar_t* combinePaths(const wchar_t *parent, const wchar_t *child);
 void centerWndToParent(HWND wnd);
-void offsetCtrlPos(HWND parent, HWND ctrl, int dx, int dy);
-void offsetCtrlSize(HWND ctrl, int dw, int dh);
+int getChildWndCount(HWND wnd);
+void setWndPosDeferred(const SetWindowPosArgs *ops);
 void addListViewColumns(HWND listView, ListViewColumn *columns);
 void sizeListViewColumns(HWND listView, ListViewColumnSize *sizes);
 int msgBox(UINT type,

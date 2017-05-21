@@ -21,11 +21,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "mem.h"
 #include "match.h"
 #include "rule.h"
+#include "edit_dlg.h"
+#include "rules_dlg.h"
 #include "util.h"
 #include "Scintilla.h"
 #include "exec.h"
 #include "resource.h"
 #include "about_dlg.h"
+#include "queue_dlg.h"
 #include "PluginInterface.h"
 #include "nppexec_msgs.h"
 
@@ -33,8 +36,9 @@ static void initPlugin(NppData data);
 static void deinitPlugin(void);
 static bool validateModuleName(wchar_t **dir);
 static wchar_t* queryConfigDir(void);
-static void onAbout(void);
+static void onEditRules(void);
 static void onExecQueue(void);
+static void onAbout(void);
 
 static wchar_t *pluginDir;
 static wchar_t *configDir;
@@ -43,6 +47,7 @@ static HWND nppWnd;
 
 static const TCHAR NPP_PLUGIN_NAME[] = PLUGIN_NAME;
 static FuncItem menuItems[] = {
+    { L"Edit rules...", onEditRules, 0, false, NULL },
     { L"Execution queue...", onExecQueue, 0, false, NULL },
     { L"", NULL, 0, false, NULL },
     { L"About...", onAbout, 0, false, NULL }
@@ -62,14 +67,14 @@ void initPlugin(NppData data)
                     L"Failed to validate the plugin's module path. The plugin will not function until the issues are resolved.");
         goto fail_mod;
     }
-    else if (!(configDir = queryConfigDir()))
+    if (!(configDir = queryConfigDir()))
     {
         /* TODO error */
         errorMsgBox(NULL,
                     L"Failed to query Notepad++'s configuration directory. The plugin will not function until the issues are resolved.");
         goto fail_config;
     }
-    else if (readRules(&rules))
+    if (readRules(&rules))
     {
         /* TODO error */
         errorMsgBox(NULL,
@@ -101,6 +106,9 @@ bool validateModuleName(wchar_t **dir)
     wchar_t *tmp;
     size_t len;
     wchar_t *fname;
+
+    assert(MAX_PATH < SIZE_MAX);
+    assert(dir);
 
     len = MAX_PATH + 1;
 
@@ -171,7 +179,12 @@ wchar_t* queryConfigDir(void)
 {
     wchar_t *dir;
     wchar_t *tmp;
-    size_t len = MAX_PATH + 1;
+    size_t len;
+
+    assert(MAX_PATH < SIZE_MAX);
+    assert(MAX_PATH >= 4);
+
+    len = MAX_PATH + 1;
 
     if (!(dir = allocStr(len)))
     {
@@ -186,9 +199,8 @@ wchar_t* queryConfigDir(void)
                        reinterpret_cast<LPARAM>(&dir[4])))
     {
 
-        /*
-        ** Just assume the problem is the insufficient length although it could
-        ** be something else.
+        /* Just assume the problem is the insufficient length although it could
+        ** be something else. No way to know.
         */
 
         if (len == SIZE_MAX)
@@ -233,15 +245,15 @@ bool queryNppExecLoaded(void)
                           reinterpret_cast<void*>(&ver)) == TRUE;
 }
 
-void execRules(uptr_t bufferId, unsigned int code)
+void execRules(uptr_t bufId, unsigned int code)
 {
-    LRESULT numUnits;
-    size_t numUnitsSt;
+    LRESULT unitCnt;
+    size_t unitCntSizeT;
     wchar_t *path;
 
-    numUnits = sendNppMsg(NPPM_GETFULLPATHFROMBUFFERID,
-                          static_cast<WPARAM>(bufferId),
-                          static_cast<LPARAM>(NULL));
+    unitCnt = sendNppMsg(NPPM_GETFULLPATHFROMBUFFERID,
+                         static_cast<WPARAM>(bufId),
+                         static_cast<LPARAM>(NULL));
 
     /* Let's not assume that Notepad++ keeps the path string in a contiguous
     ** region of memory in a zero-terminated fashion. The conversion to size_t
@@ -249,22 +261,22 @@ void execRules(uptr_t bufferId, unsigned int code)
     ** integer is always defined behaviour.
     */
 
-    numUnitsSt = static_cast<size_t>(numUnits);
+    unitCntSizeT = static_cast<size_t>(unitCnt);
 
-    if (static_cast<LRESULT>(numUnitsSt) != numUnits
-        || numUnitsSt == SIZE_MAX)
+    if (static_cast<LRESULT>(unitCntSizeT) != unitCnt
+        || unitCntSizeT == SIZE_MAX)
     {
         /* TODO error */
         goto fail_path_too_long;
     }
-    if (!(path = allocStr(numUnitsSt + 1)))
+    if (!(path = allocStr(unitCntSizeT + 1)))
     {
         /* TODO error */
         goto fail_alloc;
     }
 
     sendNppMsg(NPPM_GETFULLPATHFROMBUFFERID,
-               static_cast<WPARAM>(bufferId),
+               static_cast<WPARAM>(bufId),
                reinterpret_cast<LPARAM>(path));
 
     for (Rule *rule = rules; rule; rule = rule->next)
@@ -273,7 +285,7 @@ void execRules(uptr_t bufferId, unsigned int code)
             && rule->enabled
             && isRegexMatch(rule->regex, path))
         {
-            if (execRule(bufferId, path, rule))
+            if (execRule(bufId, path, rule))
             {
                 /* TODO error */
             }
@@ -288,10 +300,10 @@ fail_path_too_long:
     return;
 }
 
-void onAbout(void)
+void onEditRules(void)
 {
     if (isPluginInit())
-        openAboutDlg();
+        openRulesDlg(&rules);
     else
         errorMsgBox(nppWnd, L"The plugin was not fully initialized.");
 }
@@ -299,7 +311,15 @@ void onAbout(void)
 void onExecQueue(void)
 {
     if (isPluginInit())
-        openQueueDlg();
+        openQueueDlg(getNppWnd(), false, false, false);
+    else
+        errorMsgBox(nppWnd, L"The plugin was not fully initialized.");
+}
+
+void onAbout(void)
+{
+    if (isPluginInit())
+        openAboutDlg();
     else
         errorMsgBox(nppWnd, L"The plugin was not fully initialized.");
 }
@@ -370,7 +390,7 @@ BOOL APIENTRY DllMain(HINSTANCE inst,
 
 #ifdef DEBUG
 
-LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     wchar_t *path;
     size_t len;
@@ -381,9 +401,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     switch(msg)
     {
     case WM_CLOSE:
-        DestroyWindow(hwnd);
+        DestroyWindow(wnd);
         break;
     case WM_DESTROY:
+        if (!isQueueEmpty())
+            emptyQueue();
+
         deinitPlugin();
 
         if (allocatedBytes)
@@ -392,31 +415,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         PostQuitMessage(0);
         break;
     case WM_KEYDOWN:
-        if (wParam == VK_ESCAPE)
-            DestroyWindow(hwnd);
+        if (wp == VK_ESCAPE)
+            DestroyWindow(wnd);
         else
         {
             for (rule = rules; rule; rule = rule->next)
-            {
-                wprintf(L"Executing: %ls\n", rule->name);
                 execRule(0, L"C:\\foo.txt", rule);
-            }
+
+            // openQueueDlg(getNppWnd(), true, false, false);
+            openAboutDlg();
         }
 
         break;
     case NPPM_MSGTOPLUGIN:
-        ci = (CommunicationInfo*) lParam;
+        ci = (CommunicationInfo*) lp;
+
         if (ci->internalMsg == NPEM_NPPEXEC)
-        {
-            wprintf(L"NPEM_NPPEXEC %ls %ls\n",
-                    ((NpeNppExecParam*) ci->info)->szScriptName,
-                    ((NpeNppExecParam*) ci->info)->szScriptArguments);
-            ((NpeNppExecParam*) ci->info)->dwResult = NPE_EXECUTE_OK;
-        }
+            ((NpeNppExecParam*) ci->info)->dwResult = NPE_EXECUTE_FAILED;
         else if (ci->internalMsg == NPEM_GETSTATE)
         {
-            wprintf(L"NPEM_GETSTATE\n");
             state = static_cast<DWORD*>(ci->info);
+
             if (rand() < RAND_MAX / 20)
                 *state = NPE_EXECUTE_OK;
             else
@@ -425,7 +444,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         break;
     case NPPM_GETFULLPATHFROMBUFFERID:
-        switch (wParam)
+        switch (wp)
         {
         case 0:
             path = copyStr(L"C:\\Users\\BAREMETAL\\Desktop\\recipes");
@@ -444,16 +463,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
 
         len = wcslen(path);
-        if ((wchar_t*) lParam)
+        if ((wchar_t*) lp)
         {
-            StringCchCopyW(reinterpret_cast<wchar_t*>(lParam), len + 1, path);
+            StringCchCopyW(reinterpret_cast<wchar_t*>(lp), len + 1, path);
         }
 
         freeStr(path);
 
         return static_cast<LRESULT>(len);
     default:
-        return DefWindowProc(hwnd, msg, wParam, lParam);
+        return DefWindowProc(wnd, msg, wp, lp);
     }
 
     return 0;
@@ -539,6 +558,7 @@ FuncItem* getFuncsArray(int *nbF)
 void beNotified(SCNotification *notification)
 {
     Sci_NotifyHeader *hdr;
+    int res;
 
     hdr = &notification->nmhdr;
 
@@ -557,6 +577,15 @@ void beNotified(SCNotification *notification)
 
     if (hdr->code == NPPN_SHUTDOWN)
     {
+        if (!isQueueEmpty()
+            && (res = openQueueDlg(getNppWnd(), true, true, false)) == -1)
+        {
+            /* TODO error */
+            emptyQueue();
+            errorMsgBox(nppWnd,
+                        L"The remaining rules were forcefully terminated, because Notepad++ is shutting down and the wait dialog failed to launch.");
+        }
+
         deinitPlugin();
 
 #ifdef DEBUG

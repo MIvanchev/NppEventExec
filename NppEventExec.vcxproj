@@ -19,33 +19,41 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="mem.h" />
-    <ClInclude Include="plugin.h" />
-    <ClInclude Include="util.h" />
     <ClInclude Include="about_dlg.h" />
+    <ClInclude Include="base.h" />
     <ClInclude Include="csv.h" />
+    <ClInclude Include="edit_dlg.h" />
     <ClInclude Include="event_map.h" />
     <ClInclude Include="exec.h" />
-    <ClInclude Include="rule.h" />
-    <ClInclude Include="utf8.h" />
+    <ClInclude Include="exec_def.h" />
     <ClInclude Include="match.h" />
-    <ClInclude Include="base.h" />
-    <ClInclude Include="nppexec_msgs.h" />
+    <ClInclude Include="mem.h" />
     <ClInclude Include="Notepad_plus_msgs.h" />
+    <ClInclude Include="nppexec_msgs.h" />
+    <ClInclude Include="plugin.h" />
     <ClInclude Include="PluginInterface.h" />
+    <ClInclude Include="queue_dlg.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="rule.h" />
+    <ClInclude Include="rules_dlg.h" />
     <ClInclude Include="Scintilla.h" />
+    <ClInclude Include="utf8.h" />
+    <ClInclude Include="util.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="mem.c" />
-    <ClCompile Include="plugin.cpp" />
-    <ClCompile Include="util.c" />
     <ClCompile Include="about_dlg.c" />
     <ClCompile Include="csv.c" />
+    <ClCompile Include="edit_dlg.c" />
     <ClCompile Include="event_map.c" />
     <ClCompile Include="exec.c" />
-    <ClCompile Include="rule.c" />
-    <ClCompile Include="utf8.c" />
     <ClCompile Include="match.cpp" />
+    <ClCompile Include="mem.c" />
+    <ClCompile Include="plugin.cpp" />
+    <ClCompile Include="queue_dlg.c" />
+    <ClCompile Include="rule.c" />
+    <ClCompile Include="rules_dlg.c" />
+    <ClCompile Include="utf8.c" />
+    <ClCompile Include="util.c" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="NppEventExec.rc" />
@@ -139,7 +147,7 @@
       </MinimalRebuild>
       <BufferSecurityCheck>
       </BufferSecurityCheck>
-      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100;4711;4200</DisableSpecificWarnings>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <ProgramDataBaseFileName />
       <FloatingPointModel />
@@ -157,7 +165,7 @@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>gdi32.lib;comctl32.lib</AdditionalDependencies>
+      <AdditionalDependencies>gdi32.lib;comctl32.lib;shell32.lib</AdditionalDependencies>
       <ManifestFile />
       <TypeLibraryResourceID />
       <SuppressStartupBanner>false</SuppressStartupBanner>
@@ -181,7 +189,7 @@
       </MinimalRebuild>
       <BufferSecurityCheck>
       </BufferSecurityCheck>
-      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100;4711;4200</DisableSpecificWarnings>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <ProgramDataBaseFileName />
       <FloatingPointModel />
@@ -198,7 +206,7 @@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>gdi32.lib;comctl32.lib</AdditionalDependencies>
+      <AdditionalDependencies>gdi32.lib;comctl32.lib;shell32.lib</AdditionalDependencies>
       <SuppressStartupBanner>false</SuppressStartupBanner>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <ImportLibrary />
@@ -219,7 +227,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100;4711;4200</DisableSpecificWarnings>
       <BufferSecurityCheck>
       </BufferSecurityCheck>
       <FloatingPointModel />
@@ -241,7 +249,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <ImportLibrary>
       </ImportLibrary>
-      <AdditionalDependencies>gdi32.lib;comctl32.lib</AdditionalDependencies>
+      <AdditionalDependencies>gdi32.lib;comctl32.lib;shell32.lib</AdditionalDependencies>
       <SuppressStartupBanner>false</SuppressStartupBanner>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <ManifestFile />
@@ -262,7 +270,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4820;4514;4710;4706;4255;4201;4668;4100;4711;4200</DisableSpecificWarnings>
       <FloatingPointModel />
       <ProgramDataBaseFileName />
       <TreatWChar_tAsBuiltInType />
@@ -282,7 +290,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <ImportLibrary>
       </ImportLibrary>
-      <AdditionalDependencies>gdi32.lib;comctl32.lib</AdditionalDependencies>
+      <AdditionalDependencies>gdi32.lib;comctl32.lib;shell32.lib</AdditionalDependencies>
       <SuppressStartupBanner>false</SuppressStartupBanner>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <ManifestFile />

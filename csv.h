@@ -18,20 +18,29 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #ifndef __CSV_H__
 #define __CSV_H__
 
+typedef enum
+{
+    BOOL_TRUE_FALSE,
+    BOOL_YES_NO,
+    BOOL_ON_OFF,
+    BOOL_ONE_ZERO
+} BoolOutputMode;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int csvOpen(wchar_t *path, int header, size_t numFields);
+int csvOpen(wchar_t *path, size_t fieldCnt, int header);
+int csvCreate(wchar_t *path, size_t fieldCnt);
+int csvFlush(void);
 void csvClose(void);
-int csvHasChars(void);
-int csvGetChars(wchar_t *buf, size_t bufLen, size_t *numUnits,
-                size_t *numChars);
-wchar_t *csvGetString(size_t minChars, size_t maxChars);
-int csvSkipValue(void);
-int csvGetValue(wchar_t *buf, size_t maxLen);
-int csvGetBool(void);
-int csvGetEvent(unsigned int *event);
+int csvHasData(void);
+wchar_t* csvReadString(size_t *unitCnt, size_t *charCnt);
+int csvReadBool(void);
+int csvReadEvent(unsigned int *val);
+int csvWriteString(const wchar_t *str);
+int csvWriteBool(int val, BoolOutputMode mode);
+int csvWriteEvent(unsigned int event);
 
 #ifdef __cplusplus
 }

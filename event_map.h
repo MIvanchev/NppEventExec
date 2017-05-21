@@ -32,6 +32,7 @@ extern const size_t eventMapSize;
 extern "C" {
 #endif
 
+int getEventMapEntryIndex(unsigned int event, size_t *index);
 const EventMapEntry* getEventMapEntry(unsigned int event);
 
 #ifdef __cplusplus

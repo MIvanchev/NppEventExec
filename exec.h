@@ -23,7 +23,8 @@ extern "C" {
 #endif
 
 int execRule(uptr_t bufferId, const wchar_t *path, const Rule *rule);
-int openQueueDlg(void);
+void emptyQueue(void);
+int isQueueEmpty(void);
 
 #ifdef __cplusplus
 }

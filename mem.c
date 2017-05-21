@@ -69,6 +69,9 @@ void* allocMem(size_t numBytes)
 
 void freeMem(void *mem)
 {
+    if (!mem)
+        return;
+
 #ifdef DEBUG
     allocatedBytes -= HeapSize(GetProcessHeap(), 0, mem);
 #endif

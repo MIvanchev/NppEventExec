@@ -16,157 +16,118 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 #include "base.h"
-#include "mem.h"
-#include "plugin.h"
 #include "rule.h"
 #include "Scintilla.h"
 #include "exec.h"
-#include "resource.h"
-#include "util.h"
+#include "exec_def.h"
 #include "Notepad_plus_msgs.h"
 #include "nppexec_msgs.h"
+#include "mem.h"
+#include "plugin.h"
+#include "queue_dlg.h"
+#include "resource.h"
+#include "util.h"
 
 /** TODO */
 #define UPDATE_INTERVAL_IN_MS 100
 
-/** TODO */
-#define DLG_MIN_WIDTH 480
-
-/** TODO */
-#define DLG_MIN_HEIGHT 320
-
-/** TODO */
-#define PLACEHOLDER L"<n/a>";
-
-typedef enum
-{
-    STATE_QUEUED,
-    STATE_WAITING,
-    STATE_EXECUTING
-} RuleExecState;
-
-typedef struct _RuleExec
+typedef struct _Exec
 {
     const Rule *rule;
-    wchar_t *args;
-    uptr_t bufferId;
-    RuleExecState state;
-    struct _RuleExec *next;
-} RuleExec;
-
-typedef enum
-{
-    COL_POS,
-    COL_RULE,
-    COL_STATE,
-    COL_PATH,
-    COL_BACKGROUND
-} Column;
-
-typedef struct _ColumnData
-{
-    RuleExec *exec;
-    wchar_t *pos;
+    ExecState state;
+    struct _Exec *next;
     wchar_t *path;
-    struct _ColumnData *next;
-} ColumnData;
+    wchar_t args[];
+} Exec;
 
-typedef struct
-{
-    HWND handle;
-    HWND lvQueue;
-    HWND btnMode;
-    HWND btnAbort;
-    HWND btnClose;
-    int clientW;
-    int clientH;
-    ColumnData *colDataFirst;
-    ColumnData *colDataLast;
-    bool userAction;
-} Dialog;
-
-static wchar_t* createArgs(uptr_t bufferId, const wchar_t *path);
-static bool launchQueueDlg(bool userAction);
-static void removeExec(RuleExec *prevExec, RuleExec *exec);
-static RuleExec* getExecAt(int pos);
+static Exec* allocExec(size_t pathLen, uptr_t bufIdDigitCnt, size_t *argsLen);
+static bool initArgs(Exec *exec,
+                     size_t argsLen,
+                     size_t pathLen,
+                     const wchar_t *path,
+                     uptr_t bufIdDigitCnt,
+                     uptr_t bufId);
+static uptr_t countBufIdDigits(uptr_t bufId);
 static void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime);
-static void updateQueue(void);
-static void layoutDlg(void);
-static void setCloseable(bool closeable);
-static BOOL CALLBACK dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
-static void removeColData(RuleExec *exec);
-static void addColData(RuleExec *exec, int execPos);
-static ColumnData* getColumnData(RuleExec *exec);
-static void onInitDlg(HWND dlg);
-static void onSize(int newW, int newH);
-static void onGetDispInfo(NMLVDISPINFO *dispInfo);
-static void onAbort(void);
-static void setAbortBtnState(void);
+static Exec* getExecAt(int pos);
 
-static Dialog *queueDlg;
-static RuleExec *execs;
-static RuleExec *lastExec;
-static int numExecs;
-static int numForeground;
-static UINT timerId;
-
-int execRule(uptr_t bufferId, const wchar_t *path, const Rule *rule)
+static struct
 {
-    RuleExec *exec;
-    RuleExec *prevExec;
+    Exec *first;
+    Exec *last;
+    unsigned int size;
+    unsigned int foregroundCnt;
+    UINT timerId;
+} queue;
 
-    if (numExecs == INT_MAX)
+int execRule(uptr_t bufId, const wchar_t *path, const Rule *rule)
+{
+    Exec *exec;
+    Exec *prevExec;
+    uptr_t bufIdDigitCnt;
+    size_t pathLen;
+    size_t argsLen;
+
+    assert(path);
+    assert(rule);
+
+    if (queue.size == INT_MAX)
     {
         /* TODO error */
         goto fail_too_many_execs;
     }
-    if (!(exec = allocMem(sizeof(RuleExec))))
+
+    pathLen = wcslen(path);
+    bufIdDigitCnt = countBufIdDigits(bufId);
+
+    if (!(exec = allocExec(pathLen, bufIdDigitCnt, &argsLen)))
     {
         /* TODO error */
         goto fail_alloc;
     }
-    if (!(exec->args = createArgs(bufferId, path)))
+
+    if (!initArgs(exec, argsLen, pathLen, path, bufIdDigitCnt, bufId))
     {
         /* TODO error */
         goto fail_args;
     }
 
-    exec->bufferId = bufferId;
     exec->rule = rule;
     exec->state = STATE_QUEUED;
     exec->next = NULL;
 
-    if (!execs)
+    if (!queue.first)
     {
-        if (!(timerId = SetTimer(NULL, 0, UPDATE_INTERVAL_IN_MS, timerProc)))
+        if (!(queue.timerId
+                  = SetTimer(NULL, 0, UPDATE_INTERVAL_IN_MS, timerProc)))
         {
             /* TODO error */
             goto fail_timer;
         }
 
-        execs = exec;
-        lastExec = exec;
-        /* Get rid of a 'maybe uninitialized warning. */
+        /* Get rid of a 'maybe uninitialized' warning. */
         prevExec = NULL;
+
+        queue.first = exec;
+        queue.last = exec;
     }
     else
     {
-        prevExec = lastExec;
-        lastExec->next = exec;
-        lastExec = exec;
+        prevExec = queue.last;
+        queue.last->next = exec;
+        queue.last = exec;
     }
 
-    numExecs++;
-    numForeground += !rule->background;
+    queue.size++;
+    queue.foregroundCnt += !rule->background;
 
-    if (queueDlg)
+    if (isQueueDlgVisible())
     {
-        addColData(exec, numExecs);
-        ListView_SetItemCount(queueDlg->lvQueue, numExecs);
-        if (numForeground == 1 && !rule->background)
-            setCloseable(false);
+        processQueueEvent(
+            rule->background ? QUEUE_ADD_BACKGROUND : QUEUE_ADD_FOREGROUND);
     }
-    else if (!rule->background && !launchQueueDlg(false))
+    else if (!rule->background
+             && openQueueDlg(getNppWnd(), false, true, false) == -1)
     {
         /* TODO launch dialog */
         goto fail_dlg;
@@ -175,697 +136,337 @@ int execRule(uptr_t bufferId, const wchar_t *path, const Rule *rule)
     return 0;
 
 fail_dlg:
-    numForeground--;
-    numExecs--;
 
-    if (!(lastExec = prevExec))
-        execs = NULL;
+    if (!prevExec)
+    {
+        stopQueue();
+        queue.first = NULL;
+        queue.last = NULL;
+    }
+    else
+    {
+        queue.last = prevExec;
+        queue.last->next = NULL;
+    }
+
+    queue.foregroundCnt--;
+    queue.size--;
 
 fail_timer:
-    freeStr(exec->args);
 fail_args:
     freeMem(exec);
 fail_alloc:
 fail_too_many_execs:
+
     return 1;
 }
 
-int openQueueDlg(void)
+void emptyQueue(void)
 {
-    return !launchQueueDlg(true);
+    Exec *exec;
+    Exec *next;
+
+    assert(queue.size);
+    assert(!queue.foregroundCnt);
+
+    exec = queue.first;
+
+    do
+    {
+        next = exec->next;
+        freeMem(exec);
+        exec = next;
+    }
+    while (exec);
+
+    stopQueue();
+
+    queue.first = NULL;
+    queue.last = NULL;
+    queue.size = 0;
 }
 
-wchar_t* createArgs(uptr_t bufferId, const wchar_t *path)
+int isQueueEmpty(void)
 {
-    wchar_t *args;
-    uptr_t numDigits;
-    uptr_t temp;
-    size_t pathLen;
-    size_t size;
-
-    numDigits = 0;
-
-    for (temp = bufferId; temp; temp /= 10)
-        numDigits++;
-
-    pathLen = wcslen(path);
-
-    /* The initial size accounts for 2 pairs of quotes, 1 space and the '\0'. */
-
-    size = 6;
-
-    if (numDigits > SIZE_MAX - size || pathLen > SIZE_MAX - size - numDigits)
-    {
-        /* TODO error */
-        goto fail_args_too_long;
-    }
-
-    size += numDigits + pathLen;
-
-    if (!(args = allocStr(size)))
-    {
-        /* TODO error */
-        goto fail_alloc;
-    }
-
-    StringCchPrintfW(args, size, L"\"%ld\" \"%ls\"", (long) bufferId, path);
-
-    return args;
-
-fail_alloc:
-fail_args_too_long:
-
-    return NULL;
-}
-
-bool launchQueueDlg(bool userAction)
-{
-    int res;
-
-    if (!(queueDlg = allocMem(sizeof(Dialog))))
-    {
-        /* TODO error */
-        goto fail_mem;
-    }
-
-    queueDlg->userAction = userAction;
-
-    res = DialogBox(getPluginInstance(),
-                    MAKEINTRESOURCE(IDD_QUEUE),
-                    getNppWnd(),
-                    dlgProc);
-    if (res == -1)
-    {
-        /* TODO error */
-        goto fail_dlg;
-    }
-
-    return true;
-
-fail_dlg:
-    freeMem(queueDlg);
-    queueDlg = NULL;
-fail_mem:
-
-    return false;
-}
-
-void removeExec(RuleExec *prevExec, RuleExec *exec)
-{
-    if (prevExec)
-        prevExec->next = exec->next;
-    else
-        execs = exec->next;
-
-    if (!exec->next)
-        lastExec = prevExec;
-
-    numExecs--;
-    numForeground -= !exec->rule->background;
-
-    freeMem(exec->args);
-    freeMem(exec);
-}
-
-RuleExec* getExecAt(int pos)
-{
-    RuleExec *exec;
-
-    exec = execs;
-
-    for (; pos; pos--)
-        exec = exec->next;
-
-    return exec;
-}
-
-void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime)
-{
-    int prevNumExecs;
-    RuleExecState prevState;
-    bool colDataAvail;
-    bool foreground;
-    UINT state;
-    UINT lastState;
-
-    prevNumExecs = numExecs;
-    prevState = execs->state;
-    foreground = !execs->rule->background;
-    if (queueDlg && queueDlg->colDataFirst)
-        colDataAvail = queueDlg->colDataFirst->exec == execs;
-    else
-        colDataAvail = false;
-
-    updateQueue();
-
-    /* Update the dialog's state. */
-
-    if (queueDlg)
-    {
-        /* Close the dialog if possible, otherwise update only what needs to be
-        ** updated.
-        */
-
-        if (!numForeground && !queueDlg->userAction)
-            EndDialog(queueDlg->handle, 0);
-        else
-        {
-            if (!numForeground && foreground)
-                setCloseable(true);
-
-            if (prevNumExecs != numExecs)
-            {
-                if (colDataAvail)
-                    removeColData(NULL);
-
-                /* IMPORTANT: Set the new count before modifying the item states
-                ** or else the list might try to access the now deleted last
-                ** item in the event handler.
-                */
-
-                lastState = ListView_GetItemState(queueDlg->lvQueue,
-                                                  prevNumExecs - 1,
-                                                  LVNI_SELECTED
-                                                  | LVNI_FOCUSED);
-
-                ListView_SetItemCount(queueDlg->lvQueue, numExecs);
-
-                for (int ii = 1; ii < numExecs; ii++)
-                {
-                    state = ListView_GetItemState(queueDlg->lvQueue,
-                                                  ii,
-                                                  LVNI_SELECTED | LVNI_FOCUSED);
-
-                    ListView_SetItemState(queueDlg->lvQueue,
-                                          ii - 1,
-                                          state,
-                                          LVNI_SELECTED | LVNI_FOCUSED);
-                }
-
-                if (numExecs)
-                {
-                    ListView_SetItemState(queueDlg->lvQueue,
-                                          numExecs - 1,
-                                          lastState,
-                                          LVNI_SELECTED | LVNI_FOCUSED);
-                }
-            }
-            else if (prevState != execs->state)
-                ListView_Update(queueDlg->lvQueue, 0);
-        }
-    }
-
-    /* Stop processing the queue if it's empty. */
-
-    if (!numExecs)
-        KillTimer(NULL, timerId);
+    return !queue.size;
 }
 
 void updateQueue(void)
 {
-    RuleExec *exec;
+    Exec *next;
     NpeNppExecParam npep;
     DWORD state;
 
-    exec = execs;
+    assert(queue.size);
 
-    if (exec->state == STATE_EXECUTING)
+    if (queue.first->state == STATE_EXECUTING)
     {
         sendNppExecMsg(NPEM_GETSTATE, &state);
         if (state != NPE_STATEREADY)
             return;
 
-        removeExec(NULL, execs);
+        queue.size--;
+        queue.foregroundCnt -= !queue.first->rule->background;
 
-        if (!numExecs)
+        next = queue.first->next;
+        freeMem(queue.first);
+        queue.first = next;
+
+        if (!next)
+        {
+            stopQueue();
+            queue.last = NULL;
             return;
+        }
 
-        exec = execs;
-        exec->state = STATE_WAITING;
+        /* The state is updated below. */
     }
 
-    npep.szScriptName = exec->rule->cmd;
-    npep.szScriptArguments = exec->args;
+    npep.szScriptName = queue.first->rule->cmd;
+    npep.szScriptArguments = queue.first->args;
     npep.dwResult = 0;
     sendNppExecMsg(NPEM_NPPEXEC, &npep);
-    exec->state = npep.dwResult ==
-                  NPE_EXECUTE_OK ? STATE_EXECUTING : STATE_WAITING;
+    queue.first->state = npep.dwResult ==
+                         NPE_EXECUTE_OK ? STATE_EXECUTING : STATE_WAITING;
 }
 
-void layoutDlg(void)
+void stopQueue(void)
 {
-    RECT clientRc;
-    RECT btnModeRc;
-    RECT btnCloseRc;
-    LONG lvQueueLeft;
-    LONG lvQueueTop;
-    LONG lvQueueWidth;
-    LONG lvQueueHeight;
-    LONG btnModeLeft;
-    LONG btnModeTop;
-    LONG btnAbortLeft;
-    LONG btnAbortTop;
-    LONG btnCloseLeft;
-    LONG btnCloseTop;
-
-    setWndSize(queueDlg->handle, DLG_MIN_WIDTH, DLG_MIN_HEIGHT);
-
-    GetClientRect(queueDlg->handle, &clientRc);
-    GetWindowRect(queueDlg->btnMode, &btnModeRc);
-    GetWindowRect(queueDlg->btnClose, &btnCloseRc);
-
-    queueDlg->clientW = clientRc.right - clientRc.left;
-    queueDlg->clientH = clientRc.bottom - clientRc.top;
-    btnCloseLeft = queueDlg->clientW / 2
-                   - (btnCloseRc.right - btnCloseRc.left) / 2;
-    btnCloseTop = queueDlg->clientH - 5 - (btnCloseRc.bottom - btnCloseRc.top);
-    btnModeLeft = 5;
-    btnModeTop = queueDlg->clientH - 5
-                 - (btnModeRc.bottom - btnModeRc.top) - 35;
-    btnAbortLeft = btnModeLeft + btnModeRc.right - btnModeRc.left + 5;
-    btnAbortTop = btnModeTop;
-    lvQueueLeft = 5;
-    lvQueueTop = 5;
-    lvQueueWidth = queueDlg->clientW - 5 - lvQueueLeft;
-    lvQueueHeight = btnModeTop - 5 - lvQueueTop;
-
-    setWndPos(queueDlg->lvQueue, lvQueueLeft, lvQueueTop);
-    setWndSize(queueDlg->lvQueue, lvQueueWidth, lvQueueHeight);
-    setWndPos(queueDlg->btnMode, btnModeLeft, btnModeTop);
-    setWndPos(queueDlg->btnAbort, btnAbortLeft, btnAbortTop);
-    setWndPos(queueDlg->btnClose, btnCloseLeft, btnCloseTop);
-
-    sizeListViewColumns(queueDlg->lvQueue, (ListViewColumnSize[]) {
-        {COL_POS, 0.08},
-        {COL_RULE, 0.25},
-        {COL_STATE, 0.15},
-        {COL_PATH, 0.40},
-        {COL_BACKGROUND, 0.12},
-        {-1}
-    });
+    KillTimer(NULL, queue.timerId);
 }
 
-void setCloseable(bool closeable)
+unsigned int getQueueSize(unsigned int *foregroundCnt)
 {
-    UINT flags;
-    flags = MF_BYCOMMAND | (closeable ? 0 : (MF_DISABLED | MF_GRAYED));
-    EnableMenuItem(GetSystemMenu(queueDlg->handle, FALSE), SC_CLOSE, flags);
-    EnableWindow(queueDlg->btnClose, closeable ? TRUE : FALSE);
+    *foregroundCnt = queue.foregroundCnt;
+    return queue.size;
 }
 
-void setAbortBtnState(void)
+void abortExecs(int *positions,
+                unsigned int *queueSize,
+                unsigned int *foregroundCnt)
 {
-    int lastItem;
-    int currItem;
-    RuleExec *exec;
-    BOOL enabled;
+    Exec *prevExec;
+    Exec *currExec;
+    Exec *nextExec;
+    int adjustedPos;
+    int ii;
 
-    currItem = ListView_GetNextItem(queueDlg->lvQueue, -1, LVNI_SELECTED);
-    if (currItem != -1)
-    {
-        lastItem = 0;
-        exec = execs;
-
-        /* Consider the button enabled unless an active execution is selected as well. */
-
-        enabled = TRUE;
-
-        do
-        {
-            for (; lastItem < currItem; lastItem++)
-                exec = exec->next;
-
-            if (exec->state == STATE_EXECUTING)
-            {
-                enabled = FALSE;
-                break;
-            }
-
-            currItem = ListView_GetNextItem(queueDlg->lvQueue,
-                                            currItem,
-                                            LVNI_SELECTED);
-        }
-        while (currItem != -1);
-    }
-    else
-        enabled = FALSE;
-
-    if (IsWindowEnabled(queueDlg->btnAbort) != enabled)
-        EnableWindow(queueDlg->btnAbort, enabled);
-}
-
-BOOL CALLBACK dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
-{
-    switch (msg)
-    {
-    case WM_INITDIALOG:
-        onInitDlg(dlg);
-        return TRUE;
-
-    case WM_DESTROY:
-        while (queueDlg->colDataFirst)
-            removeColData(NULL);
-
-        freeMem(queueDlg);
-        queueDlg = NULL;
-        DLGPROC_RESULT(dlg, 0);
-
-    case WM_GETMINMAXINFO:
-        ((MINMAXINFO*) lp)->ptMinTrackSize.x = DLG_MIN_WIDTH;
-        ((MINMAXINFO*) lp)->ptMinTrackSize.y = DLG_MIN_HEIGHT;
-        DLGPROC_RESULT(dlg, 0);
-
-    case WM_SIZE:
-        onSize(LOWORD(lp), HIWORD(lp));
-        DLGPROC_RESULT(dlg, 0);
-
-    case WM_CLOSE:
-        EndDialog(dlg, 0);
-        DLGPROC_RESULT(dlg, 0);
-
-    case WM_SYSKEYDOWN:
-        if (wp == SC_CLOSE)
-        {
-            EndDialog(dlg, 0);
-            DLGPROC_RESULT(dlg, 0);
-        }
-
-        break;
-
-    case WM_COMMAND:
-        switch (LOWORD(wp))
-        {
-        case IDC_BT_ABORT:
-            onAbort();
-            DLGPROC_RESULT(dlg, 0);
-        case IDCANCEL:
-            EndDialog(dlg, 0);
-            DLGPROC_RESULT(dlg, 0);
-        }
-
-        break;
-
-    case WM_NOTIFY:
-        switch (LOWORD(wp))
-        {
-        case IDC_LV_QUEUE:
-            switch (((NMHDR*) lp)->code)
-            {
-            case LVN_ITEMCHANGED:
-                setAbortBtnState();
-                break;
-
-            case LVN_GETDISPINFO:
-                onGetDispInfo((NMLVDISPINFO*) lp);
-                break;
-            }
-            break;
-        } /* switch (LOWORD(wp)) */
-
-        break;
-    } /* switch (msg) */
-
-    return FALSE;
-}
-
-void addColData(RuleExec *exec, int execPos)
-{
-    ColumnData *data;
-    wchar_t *pos;
-    wchar_t *path;
-    int numDigits;
-    int num;
-    size_t numUnits;
-
-    numDigits = 1;
-
-    for (num = execPos; num; num /= 10)
-        numDigits++;
-
-    if (numDigits > SIZE_MAX - 1)
-    {
-        /* TODO error */
-        goto fail_pos_too_large;
-    }
-
-    numUnits = sendNppMsg(NPPM_GETFULLPATHFROMBUFFERID,
-                          exec->bufferId,
-                          (LPARAM) NULL);
-    if (!(pos = allocStr(numDigits + 1)))
-    {
-        /* TODO error */
-        goto fail_alloc_pos;
-    }
-
-    /* We assume we can fit the path in memory, because it has been done before.
-    ** Technically it's risky.
-    */
-
-    if (!(path = allocStr(numUnits + 1)))
-    {
-        /* TODO error */
-        goto fail_alloc_path;
-    }
-
-    StringCchPrintfW(pos, numUnits + 1, L"%d", execPos);
-    sendNppMsg(NPPM_GETFULLPATHFROMBUFFERID, exec->bufferId, (LPARAM) path);
-
-    if (!(data = allocMem(sizeof(ColumnData))))
-    {
-        /* TODO error */
-        goto fail_alloc_data;
-    }
-
-    data->exec = exec;
-    data->pos = pos;
-    data->path = path;
-    data->next = NULL;
-
-    if (!queueDlg->colDataFirst)
-    {
-        queueDlg->colDataFirst = data;
-        queueDlg->colDataLast = data;
-    }
-    else
-    {
-        queueDlg->colDataLast->next = data;
-        queueDlg->colDataLast = queueDlg->colDataLast->next;
-    }
-
-    return;
-
-fail_alloc_data:
-    freeStr(path);
-fail_alloc_path:
-    freeStr(pos);
-fail_alloc_pos:
-fail_pos_too_large:
-    return;
-}
-
-void removeColData(RuleExec *exec)
-{
-    ColumnData *data;
-    ColumnData *prev;
-
-    prev = NULL;
-    data = queueDlg->colDataFirst;
-
-    if (exec)
-    {
-        while (data->exec != exec)
-        {
-            prev = data;
-            data = data->next;
-        }
-
-        if (!data)
-            return;
-    }
-
-    freeStr(data->path);
-
-    for (; data->next; prev = data, data = data->next)
-    {
-        data->exec = data->next->exec;
-        data->path = data->next->path;
-    }
-
-    if (!(queueDlg->colDataLast = prev))
-        queueDlg->colDataFirst = NULL;
-    else
-        queueDlg->colDataLast->next = NULL;
-
-    freeStr(data->pos);
-    freeMem(data);
-}
-
-ColumnData* getColumnData(RuleExec *exec)
-{
-    ColumnData *data;
-    for (data = queueDlg->colDataFirst;
-         data && data->exec != exec;
-         data = data->next)
-        ;
-    return data;
-}
-
-void onInitDlg(HWND dlg)
-{
-    RuleExec *exec;
-    int pos;
-
-    queueDlg->handle = dlg;
-    queueDlg->lvQueue = GetDlgItem(dlg, IDC_LV_QUEUE);
-    queueDlg->btnMode = GetDlgItem(dlg, IDC_BT_MODE);
-    queueDlg->btnAbort = GetDlgItem(dlg, IDC_BT_ABORT);
-    queueDlg->btnClose = GetDlgItem(dlg, IDCANCEL);
-    queueDlg->colDataFirst = NULL;
-
-    for (exec = execs, pos = 1; exec; exec = exec->next, pos++)
-        addColData(exec, pos);
-
-    ListView_SetExtendedListViewStyleEx(queueDlg->lvQueue,
-                                        LVS_EX_FULLROWSELECT,
-                                        LVS_EX_FULLROWSELECT);
-
-    addListViewColumns(queueDlg->lvQueue, (ListViewColumn[]) {
-        {COL_POS, L"#"},
-        {COL_RULE, L"Rule"},
-        {COL_STATE, L"State"},
-        {COL_PATH, L"Path"},
-        {COL_BACKGROUND, L"Background?"},
-        {-1}
-    });
-
-    ListView_SetItemCount(queueDlg->lvQueue, numExecs);
-
-    setCloseable(!numForeground);
-    EnableWindow(queueDlg->btnAbort, FALSE);
-    EnableWindow(queueDlg->btnMode, FALSE);
-
-    /* Not set in the RC file because of a weird resource compiler bug when
-    ** concatenating strings in the DIALOG template (only MSVC).
-    */
-
-    SetWindowText(dlg, PLUGIN_NAME L": Queue");
-
-    layoutDlg();
-    centerWndToParent(queueDlg->handle);
-}
-
-void onSize(int newW, int newH)
-{
-    int deltaWidth;
-    int deltaHeight;
-    RECT rc;
-
-    deltaWidth = newW - queueDlg->clientW;
-    deltaHeight = newH - queueDlg->clientH;
-    queueDlg->clientW = newW;
-    queueDlg->clientH = newH;
-
-    offsetCtrlSize(queueDlg->lvQueue, deltaWidth, deltaHeight);
-    offsetCtrlPos(queueDlg->handle, queueDlg->btnMode, 0, deltaHeight);
-    offsetCtrlPos(queueDlg->handle, queueDlg->btnAbort, 0, deltaHeight);
-
-    GetWindowRect(queueDlg->btnClose, &rc);
-    MapWindowPoints(NULL, queueDlg->handle, (POINT*) &rc, 2);
-    setWndPos(queueDlg->btnClose,
-              newW / 2 - (rc.right - rc.left) / 2,
-              rc.top + deltaHeight);
-}
-
-void onGetDispInfo(NMLVDISPINFO *dispInfo)
-{
-    LVITEM *item;
-    RuleExec *exec;
-    const Rule *rule;
-    ColumnData *colData;
-
-    item = &dispInfo->item;
-    exec = getExecAt(item->iItem);
-    rule = exec->rule;
-
-    switch (item->iSubItem)
-    {
-    case COL_POS:
-        colData = getColumnData(exec);
-        item->pszText = colData ? colData->pos : PLACEHOLDER;
-        break;
-    case COL_RULE:
-        item->pszText = rule->name;
-        break;
-    case COL_STATE:
-        switch (exec->state)
-        {
-        case STATE_QUEUED:
-            item->pszText = L"Queued";
-            break;
-        case STATE_WAITING:
-            item->pszText = L"Waiting";
-            break;
-        case STATE_EXECUTING:
-            item->pszText = L"Executing";
-            break;
-        }
-        break;
-    case COL_PATH:
-        colData = getColumnData(exec);
-        item->pszText = colData ? colData->path : PLACEHOLDER;
-        break;
-    case COL_BACKGROUND:
-        item->pszText = BOOL_TO_STR_YES_NO(rule->background);
-        break;
-    }
-}
-
-void onAbort(void)
-{
-    int prevItem;
-    int currItem;
-    RuleExec *prevExec;
-    RuleExec *currExec;
-    RuleExec *nextExec;
-    int numAborted;
+    assert(positions);
+    assert(queueSize);
+    assert(foregroundCnt);
 
     prevExec = NULL;
-    currExec = execs;
-    prevItem = 0;
-    currItem = -1;
-    numAborted = 0;
+    currExec = queue.first;
+    adjustedPos = 0;
 
-    while ((currItem = ListView_GetNextItem(queueDlg->lvQueue,
-                                            currItem,
-                                            LVNI_SELECTED)) != -1)
+    for (ii = 0; positions[ii] != -1; ii++)
     {
-        for (; prevItem < currItem - numAborted; prevItem++)
+        for (; adjustedPos < positions[ii] - ii; adjustedPos++)
         {
             prevExec = currExec;
             currExec = currExec->next;
         }
 
+        queue.foregroundCnt -= !currExec->rule->background;
+
         nextExec = currExec->next;
-        removeColData(currExec);
-        removeExec(prevExec, currExec);
+        freeMem(currExec);
         currExec = nextExec;
 
-        /* We need this, because we only update the list view after all
-        ** executions have been aborted.
+        if (prevExec)
+            prevExec->next = currExec;
+        else
+            queue.first = currExec;
+    }
+
+    if (!currExec)
+    {
+        stopQueue();
+        queue.last = NULL;
+    }
+
+    queue.size -= ii;
+    *queueSize = queue.size;
+    *foregroundCnt = queue.foregroundCnt;
+}
+
+const wchar_t* getExecRule(unsigned int pos)
+{
+
+    assert(pos < queue.size);
+
+    return getExecAt(pos)->rule->name;
+}
+
+ExecState getExecState(unsigned int pos)
+{
+
+    assert(pos < queue.size);
+
+    return getExecAt(pos)->state;
+}
+
+const wchar_t* getExecPath(unsigned int pos)
+{
+
+    assert(pos < queue.size);
+
+    return getExecAt(pos)->path;
+}
+
+int isExecForeground(unsigned int pos)
+{
+
+    assert(pos < queue.size);
+
+    return !getExecAt(pos)->rule->background;
+}
+
+bool initArgs(Exec *exec,
+              size_t argsLen,
+              size_t pathLen,
+              const wchar_t *path,
+              uptr_t bufIdDigitCnt,
+              uptr_t bufId)
+{
+    assert(argsLen);
+    assert(pathLen);
+    assert(path);
+    assert(bufIdDigitCnt);
+
+    if (bufIdDigitCnt > INT_MAX)
+    {
+        /* TODO error */
+        return false;
+    }
+
+    StringCchPrintfW(exec->args,
+                     argsLen,
+                     L"\"%*s\" \"%s\"%c%s",
+                     (int) bufIdDigitCnt,
+                     L"",
+                     path,
+                     L'\0',
+                     path);
+
+    /* Copy the buffer ID the hard way, because its type is not supported by
+    ** *PrintfW or we don't know which specifier to use.
+    */
+
+    do
+    {
+        exec->args[bufIdDigitCnt--] = L'0' + (bufId % 10);
+    }
+    while (bufId /= 10, bufIdDigitCnt);
+
+    exec->path = exec->args + wcslen(exec->args);
+
+    return true;
+}
+
+Exec* allocExec(size_t pathLen, uptr_t bufIdDigitCnt, size_t *argsLen)
+{
+    Exec *exec;
+    size_t len;
+
+    assert(pathLen);
+    assert(bufIdDigitCnt);
+    assert(argsLen);
+
+    /* Check if we can fit all the string data we need to store. The magic
+        ** number 7 is the extra space required to store 4 double quotes ("),
+        ** 1 space and 2 null characters (\0).
         */
 
-        numAborted++;
+    if (pathLen > (SIZE_MAX - 7) / 2
+        || bufIdDigitCnt > SIZE_MAX - 7 - 2 * pathLen)
+    {
+        /* TODO error */
+        return NULL;
     }
 
-    if (!numForeground && !queueDlg->userAction)
-        EndDialog(queueDlg->handle, 0);
-    else
+    len = 7 + 2 * pathLen + bufIdDigitCnt;
+
+    if (len > (SIZE_MAX - sizeof *exec) / sizeof exec->args[0])
     {
-        /* IMPORTANT: Adjust the count before deselecting all items. */
-        ListView_SetItemCount(queueDlg->lvQueue, numExecs);
-        ListView_SetItemState(queueDlg->lvQueue, -1, 0,
-                              LVIS_SELECTED);
-        SetFocus(queueDlg->lvQueue);
-        EnableWindow(queueDlg->btnAbort, FALSE);
+        /* TODO error */
+        return NULL;
     }
+
+    /* Allocate memory for the struct and the trailing string buffer. */
+
+    if (!(exec = allocMem(sizeof *exec + len * sizeof exec->args[0])))
+    {
+        /* TODO error */
+        return NULL;
+    }
+
+    *argsLen = len;
+
+    return exec;
+}
+
+uptr_t countBufIdDigits(uptr_t bufId)
+{
+    uptr_t cnt;
+
+    cnt = 0;
+
+    do
+    {
+        cnt++;
+    }
+    while (bufId /= 10);
+
+    return cnt;
+}
+
+void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime)
+{
+    unsigned int prevCnt;
+    ExecState prevState;
+    bool background;
+
+    prevCnt = queue.size;
+    prevState = queue.first->state;
+    background = queue.first->rule->background;
+
+    updateQueue();
+
+    if (prevCnt != queue.size)
+    {
+        if (isQueueDlgVisible())
+            processQueueEvent(
+                background ? QUEUE_REMOVE_BACKGROUND : QUEUE_REMOVE_FOREGROUND);
+
+
+
+
+
+
+
+
+
+
+
+
+
+    }
+    else if (prevState != queue.first->state)
+    {
+        if (isQueueDlgVisible())
+            processQueueEvent(QUEUE_STATUS_UPDATE);
+    }
+}
+
+Exec* getExecAt(int pos)
+{
+    Exec *exec;
+
+    exec = queue.first;
+
+    for (; pos; pos--)
+        exec = exec->next;
+
+    return exec;
 }

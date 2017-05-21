@@ -15,39 +15,26 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef __RULE_H__
-#define __RULE_H__
-
-typedef struct _Rule
-{
-    int enabled;
-    int background;
-    unsigned int event;
-    wchar_t *name;
-    wchar_t *regex;
-    wchar_t *cmd;
-    struct _Rule *next;
-} Rule;
+#ifndef __EDIT_DLG_H__
+#define __EDIT_DLG_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int readRules(Rule **rules);
-int writeRules(Rule *rules);
-void freeRule(Rule *rule);
-void freeRules(Rule *rules);
-Rule* copyRule(const Rule *rule);
-Rule* copyRules(const Rule *rules, Rule **last);
-Rule* getRuleAt(Rule *rule, int pos);
-int getRuleCount(const Rule *rules);
-
-#ifdef DEBUG
-void printRules(Rule *rules);
-#endif
+/**
+ * Opens a modal dialog which allows the user to edit the attributes of a
+ * rule.
+ * \param parent the parent window of the edit dialog.
+ * \param rule the rule that the user will be editing.
+ * \return 0 if the rule was <b>NOT<\b> changed by the user.
+ * \return 1 if the rule was changed by the user.
+ * \return -1 upon an error.
+ */
+int openEditDlg(HWND parent, Rule *rule);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __RULE_H__ */
+#endif /* __EDIT_DLG_H__ */

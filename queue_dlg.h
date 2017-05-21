@@ -15,39 +15,31 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef __RULE_H__
-#define __RULE_H__
-
-typedef struct _Rule
-{
-    int enabled;
-    int background;
-    unsigned int event;
-    wchar_t *name;
-    wchar_t *regex;
-    wchar_t *cmd;
-    struct _Rule *next;
-} Rule;
+#ifndef __QUEUE_DLG_H__
+#define __QUEUE_DLG_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int readRules(Rule **rules);
-int writeRules(Rule *rules);
-void freeRule(Rule *rule);
-void freeRules(Rule *rules);
-Rule* copyRule(const Rule *rule);
-Rule* copyRules(const Rule *rules, Rule **last);
-Rule* getRuleAt(Rule *rule, int pos);
-int getRuleCount(const Rule *rules);
+/**
+ * TODO
+ * \param waitForAll TODO
+ * \param autoClose set to true if the dialog should automatically close when
+ *                  all rules of the required group are executed.
+ * \param cancelable TODO
+ */
+INT_PTR openQueueDlg(HWND parent,
+                     /*const wchar_t *title,*/
+                     /*const wchar_t *msg,*/
+                     bool waitForAll,
+                     bool autoClose,
+                     bool cancelable);
 
-#ifdef DEBUG
-void printRules(Rule *rules);
-#endif
+int isQueueDlgVisible(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __RULE_H__ */
+#endif /* __EXEC_DLG_H__ */
