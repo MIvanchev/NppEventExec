@@ -30,8 +30,8 @@ typedef enum
 extern "C" {
 #endif
 
-int csvOpen(wchar_t *path, size_t fieldCnt, int header);
-int csvCreate(wchar_t *path, size_t fieldCnt);
+int csvOpen(const wchar_t *path, size_t fieldCnt, int header);
+int csvCreate(const wchar_t *path, size_t fieldCnt);
 int csvFlush(void);
 void csvClose(void);
 int csvHasData(void);

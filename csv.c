@@ -71,7 +71,7 @@ static size_t fieldCnt;
 static size_t remFieldCnt;
 static ParserState state;
 
-int csvOpen(wchar_t *path, size_t _fieldCnt, int header)
+int csvOpen(const wchar_t *path, size_t _fieldCnt, int header)
 {
     assert(path);
     assert(_fieldCnt);
@@ -125,7 +125,7 @@ fail_file:
     return 1;
 }
 
-int csvCreate(wchar_t *path, size_t _fieldCnt)
+int csvCreate(const wchar_t *path, size_t _fieldCnt)
 {
     assert(path);
     assert(_fieldCnt);
@@ -161,7 +161,7 @@ int csvCreate(wchar_t *path, size_t _fieldCnt)
     return 0;
 
 fail_alloc:
-    freeMem(byteBuf);
+    CloseHandle(file);
 fail_file:
     return 1;
 }
@@ -200,7 +200,7 @@ wchar_t* csvReadString(size_t *unitCnt, size_t *charCnt)
 
     assert(unitCnt);
     assert(charCnt);
-    assert(BUFLEN(chr) == 2);
+    assert(BUFLEN(chr) >= 2);
     assert(STRING_ALLOC_STEP >= 2);
     assert(STRING_ALLOC_STEP <= SIZE_MAX);
 
@@ -221,7 +221,7 @@ wchar_t* csvReadString(size_t *unitCnt, size_t *charCnt)
         {
             if (bufLen <= SIZE_MAX - STRING_ALLOC_STEP)
                 bufLen += STRING_ALLOC_STEP;
-            else if (bufLen != SIZE_MAX)
+            else if (bufLen < SIZE_MAX - res)
                 bufLen = SIZE_MAX;
             else
             {
@@ -301,7 +301,7 @@ int csvReadBool(void)
     if (readValue(buf, BUFLEN(buf)))
     {
         /* TODO error */
-        return 1;
+        return -1;
     }
     if (!_wcsicmp(buf, L"0")
         || !_wcsicmp(buf, L"off")
@@ -332,8 +332,6 @@ int csvReadEvent(unsigned int *event)
         /* TODO error */
         return 1;
     }
-
-    /* TODO error */
 
     for (ii = 0; ii < eventMapSize; ii++)
     {
@@ -373,7 +371,7 @@ int readHeader(void)
 
 int csvWriteString(const wchar_t *str)
 {
-    return writeValue(str, 1);
+    return writeValue(str, true);
 }
 
 int csvWriteBool(int val, BoolOutputMode mode)
@@ -399,12 +397,12 @@ int csvWriteBool(int val, BoolOutputMode mode)
         return 1;
     }
 
-    return writeValue(str, 0);
+    return writeValue(str, false);
 }
 
 int csvWriteEvent(unsigned int event)
 {
-    return writeValue(getEventMapEntry(event)->name, 0);
+    return writeValue(getEventMapEntry(event)->name, false);
 }
 
 int readValue(wchar_t *buf, size_t bufLen)
@@ -487,6 +485,7 @@ int readValue(wchar_t *buf, size_t bufLen)
 int readChar(wchar_t *chr)
 {
     assert(chr);
+    assert(byteBufLen);
 
     while (byteBufLen)
     {
@@ -510,9 +509,7 @@ int readChar(wchar_t *chr)
 
             state = ST_UNQUOTED;
 
-        /* Fall through to ST_UNQUOTED directly to process the same char, no
-        ** need to waste an iteration.
-        */
+        /* Fall through to ST_UNQUOTED directly to process the same char. */
 
         case ST_UNQUOTED:
             switch (*chr)
@@ -648,6 +645,8 @@ int nextChar(wchar_t *chr)
     unsigned long code;
 
     assert(chr);
+    assert(byteBufLen);
+    assert(BYTE_BUF_SIZE_READ >= 3);
 
     unit = *byteBufPtr++;
     byteBufLen--;
@@ -657,13 +656,14 @@ int nextChar(wchar_t *chr)
         /* TODO error */
         return 1;
     }
-    if (UTF8_CTRL_CODE[unit])
-    {
-        /* TODO error */
-        return 1;
-    }
     if (!(unit & 0x80))
     {
+        if (UTF8_CTRL_CODE[unit])
+        {
+            /* TODO error */
+            return 1;
+        }
+
         *chr = unit;
 
         if (!byteBufLen && readBytes())
@@ -757,6 +757,7 @@ int readBytes(void)
 
     assert(byteBufSize <= SIZE_MAX);
     assert(byteBufSize < (DWORD) -1);
+    assert(!byteBufLen);
 
     if (!ReadFile(file, byteBuf, byteBufSize, &byteCnt, NULL))
     {
@@ -801,7 +802,7 @@ int writeValue(const wchar_t *str, bool escape)
             code = *str++;
             unitCnt = 1;
         }
-        else if (*str <= 0xFF)
+        else if (*str <= 0x7F)
         {
             if (UTF8_CTRL_CODE[*str])
             {
@@ -825,7 +826,7 @@ int writeValue(const wchar_t *str, bool escape)
         }
 
 #define WRITE_LEADING_FAILED(len)                              \
-    writeByte((unsigned char) ((0xFF ^ ((1 << (9 - len)) - 1)) \
+    writeByte((unsigned char) ((0xFF ^ ((1 << (8 - len)) - 1)) \
                                + (code >> (6 * (len - 1)))))
 
 #define WRITE_CONT_FAILED(pos) \
