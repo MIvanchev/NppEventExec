@@ -46,8 +46,8 @@ extern "C" {
 #endif
 
 wchar_t* copyStr(const wchar_t *str);
-wchar_t* allocStr(size_t numUnits);
-wchar_t* reallocStr(wchar_t *str, size_t numUnits);
+wchar_t* allocStr(size_t unitCnt);
+wchar_t* reallocStr(wchar_t *str, size_t unitCnt);
 void freeStr(wchar_t *str);
 wchar_t* getFilename(const wchar_t *path);
 wchar_t* combinePaths(const wchar_t *parent, const wchar_t *child);
@@ -63,7 +63,7 @@ int msgBox(UINT type,
            ...);
 int errorMsgBox(HWND parent, const wchar_t *format, ...);
 
-size_t countChars(wchar_t *str);
+size_t countChars(const wchar_t *str);
 
 #ifdef __cplusplus
 }

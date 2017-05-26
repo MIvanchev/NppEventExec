@@ -42,6 +42,8 @@ wchar_t* copyStr(const wchar_t *str)
     wchar_t *res;
     size_t len;
 
+    assert(str);
+
     len = wcslen(str) + 1;
 
     if (!(res = allocStr(len)))
@@ -55,16 +57,18 @@ wchar_t* copyStr(const wchar_t *str)
     return res;
 }
 
-wchar_t* reallocStr(wchar_t *str, size_t numUnits)
+wchar_t* reallocStr(wchar_t *str, size_t unitCnt)
 {
     wchar_t *res;
 
-    if (numUnits > SIZE_MAX / sizeof *res)
+    assert(unitCnt);
+
+    if (unitCnt > SIZE_MAX / sizeof *res)
     {
         /* TODO error */
         return NULL;
     }
-    else if (!(res = reallocMem(str, numUnits * sizeof *res)))
+    else if (!(res = reallocMem(str, unitCnt * sizeof *res)))
     {
         /* TODO error */
         return NULL;
@@ -73,19 +77,25 @@ wchar_t* reallocStr(wchar_t *str, size_t numUnits)
     return res;
 }
 
-wchar_t* allocStr(size_t numUnits)
+wchar_t* allocStr(size_t unitCnt)
 {
-    return reallocStr(NULL, numUnits);
+    assert(unitCnt);
+
+    return reallocStr(NULL, unitCnt);
 }
 
 void freeStr(wchar_t *str)
 {
+    assert(str);
+
     freeMem(str);
 }
 
-size_t countChars(wchar_t *str)
+size_t countChars(const wchar_t *str)
 {
     size_t cnt = 0;
+
+    assert(str);
 
     while (*str != L'\0')
     {
@@ -98,7 +108,12 @@ size_t countChars(wchar_t *str)
 
 wchar_t* getFilename(const wchar_t *path)
 {
-    wchar_t *fname = (wchar_t*) path, *p;
+    wchar_t *fname;
+    wchar_t *p;
+
+    assert(path);
+
+    fname = (wchar_t*) path;
 
     for (p = fname; *p != L'\0'; p++)
     {
@@ -111,9 +126,15 @@ wchar_t* getFilename(const wchar_t *path)
 
 wchar_t* combinePaths(const wchar_t *parent, const wchar_t *child)
 {
-    size_t lenParent = wcslen(parent);
-    size_t lenChild = wcslen(child);
+    size_t lenParent;
+    size_t lenChild;
     wchar_t *res;
+
+    assert(parent);
+    assert(child);
+
+    lenParent = wcslen(parent);
+    lenChild =  wcslen(child);
 
     if (STRSAFE_MAX_CCH < lenParent
         || STRSAFE_MAX_CCH - lenParent < lenChild
@@ -166,6 +187,8 @@ int getChildWndCount(HWND wnd)
 {
     GetChildWndCountData data;
 
+    assert(wnd);
+
     data.count = 0;
     data.success = true;
 
@@ -203,6 +226,8 @@ void setWndPosDeferred(const SetWindowPosArgs *ops)
     size_t count;
     SetWindowPosArgs *op;
     HDWP hdwp;
+
+    assert(ops);
 
     count = 0;
 
@@ -259,6 +284,9 @@ void addListViewColumns(HWND listView, ListViewColumn *columns)
 {
     LVCOLUMN col;
 
+    assert(listView);
+    assert(columns);
+
     for (; columns->column != -1; columns++)
     {
         col.mask = LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM;
@@ -276,6 +304,9 @@ void sizeListViewColumns(HWND listView, ListViewColumnSize *sizes)
     LONG totalWidth;
     LONG remainingWidth;
     LONG width;
+
+    assert(listView);
+    assert(sizes);
 
     GetClientRect(listView, &rc);
 
@@ -304,6 +335,9 @@ int msgBox(UINT type,
     va_list argList;
     int ret;
 
+    assert(title);
+    assert(format);
+
     va_start(argList, format);
     ret = msgBoxV(type, parent, title, format, argList);
     va_end(argList);
@@ -319,6 +353,9 @@ int msgBoxV(UINT type,
 {
     wchar_t buf[1024];
     int res;
+
+    assert(title);
+    assert(format);
 
     StringCbVPrintfW(buf, sizeof(buf), format, argList);
 
@@ -346,6 +383,8 @@ int errorMsgBox(HWND parent, const wchar_t *format, ...)
 {
     va_list argList;
     int ret;
+
+    assert(format);
 
     va_start(argList, format);
     ret = msgBoxV(MB_OK | MB_ICONERROR, parent, PLUGIN_NAME L": Error", format,
