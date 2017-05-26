@@ -86,8 +86,6 @@ wchar_t* allocStr(size_t unitCnt)
 
 void freeStr(wchar_t *str)
 {
-    assert(str);
-
     freeMem(str);
 }
 
