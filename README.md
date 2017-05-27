@@ -39,7 +39,7 @@ This documentation assumes you're acquinted with NppExec. This is because NppEve
 
 ### Managing rules
 
-To create or edit rules, select Plugins->NppEventExec->Edit rules... from Notepad++'s main menu. This opens the rule management dialog. To edit a specific rule either select the rule and then click on the edit button in the toolbar or double-click on the rule in the list. The rule attributes are as follows:
+To create or edit rules, select <i>Plugins->NppEventExec->Edit rules...</i> from Notepad++'s main menu. This opens the rule management dialog. To edit a specific rule either select the rule and then click on the edit button in the toolbar or double-click on the rule in the list. The rule attributes are as follows:
 
 Attribute | Meaning
 ------|--------
@@ -53,7 +53,7 @@ Background? | When true, the rule is executed in the background, i.e. it will al
 The modifications are only written to the disk when you click on the Save button. If any rules are executing, the plugin will wait until they finish or you abort them. Clicking on Reset will reset **all** changes you've made to the rules.
 
 ### Execution queue and aborting rules
-To see the rule which is currently executing as well as all scheduled rules, select Plugins->NppEventExec->Execution queue... from Notepad++'s main menu. This opens the queue dialog which allows you to abort all rules except for the rule that NppExec is currently executing.
+To see the rule which is currently executing as well as all scheduled rules, select <i>Plugins->NppEventExec->Execution queue...</i> from Notepad++'s main menu. This opens the queue dialog which allows you to abort all rules except for the rule that NppExec is currently executing.
 
 The queue dialog opens automatically in the following cases:
 * when a non-background rule is executed; the dialog is shown and cannot be closed to prevent you from interacting with Notepad++;
@@ -121,7 +121,7 @@ The default configuration and platform are `Debug` and `Win32` respectively. To 
 The best place to discuss the plugin, receive help or report a problem is the [Notepad++ Community](https://notepad-plus-plus.org/community/). Of course you can also contact me privately.
 
 ## Credits
-The plugin is using **modified** icons from the pack ["16x16 free application icons"](http://www.small-icons.com/packs/16x16-free-application-icons.htm) from [Aha-Soft](http://www.aha-soft.com/). The said icon pack is distributed under the license [Creative Commons Attribution 3.0 United States (CC BY 3.0 US)](https://creativecommons.org/licenses/by/3.0/us/). Aha-Soft makes awesome icons.
+The plugin is using **modified** icons from the set [16x16 free application icons](http://www.small-icons.com/packs/16x16-free-application-icons.htm) from [Aha-Soft](http://www.aha-soft.com/). The said icon pack is distributed under the license [Creative Commons Attribution 3.0 United States (CC BY 3.0 US)](https://creativecommons.org/licenses/by/3.0/us/). Aha-Soft makes awesome icons.
 
 ## License
 
@@ -129,4 +129,4 @@ Copyright © 2016-2017 Mihail Ivanchev.
 
 Distributed under the GNU General Public License, Version 3 (GNU GPLv3)
 
-Notepad++, NppExec and the icon pack "16x16 free application icons" from Aha-Soft are distributed under their respective licenses.
+Notepad++, NppExec and the icon set "16x16 free application icons" from Aha-Soft are distributed under their respective licenses.
