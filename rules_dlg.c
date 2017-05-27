@@ -57,6 +57,7 @@ typedef struct
     HWND handle;
     HWND toolbar;
     HWND lvRules;
+    WNDPROC lvRulesProc;
     LONG padding;
     LONG minWidth;
     LONG minHeight;
@@ -87,6 +88,7 @@ static void addToolbarBtn(int bmpIndex, int cmdId, int strId);
 static void setToolbarBtnEnabled(int btnCmd, bool enabled);
 static void layoutDlg(void);
 static BOOL CALLBACK layoutDlgProc(HWND wnd, LPARAM lp);
+static LRESULT CALLBACK lvRulesProc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp);
 static bool resetRules(void);
 static bool saveRules(void);
 static void deselectAll(void);
@@ -212,6 +214,7 @@ BOOL dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
                 break;
 
             case NM_DBLCLK:
+            case NM_RETURN:
                 onEdit();
                 break;
 
@@ -337,6 +340,9 @@ void onInitDlg(HWND handle)
     /* SendMessage(toolbar, TB_AUTOSIZE, 0, 0); */
 
     dlg->lvRules = GetDlgItem(handle, IDC_LV_RULES);
+    dlg->lvRulesProc = (WNDPROC) SetWindowLongPtr(dlg->lvRules, GWLP_WNDPROC,
+                                                  (LONG_PTR) &lvRulesProc);
+
     dlg->btnReset = GetDlgItem(handle, IDC_BT_RESET);
     dlg->btnSave = GetDlgItem(handle, IDC_BT_SAVE);
     dlg->btnClose = GetDlgItem(handle, IDCANCEL);
@@ -930,6 +936,14 @@ BOOL CALLBACK layoutDlgProc(HWND wnd, LPARAM lp)
     }
 
     return TRUE;
+}
+
+LRESULT CALLBACK lvRulesProc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+    if (msg == WM_GETDLGCODE && wp == VK_RETURN)
+        return DLGC_WANTALLKEYS;
+
+    return CallWindowProc(dlg->lvRulesProc, wnd, msg, wp, lp);
 }
 
 bool resetRules(void)
