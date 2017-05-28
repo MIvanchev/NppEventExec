@@ -303,7 +303,13 @@ fail_path_too_long:
 void onEditRules(void)
 {
     if (isPluginInit())
-        openRulesDlg(&rules);
+    {
+        if (openRulesDlg(&rules))
+        {
+            /* TODO error */
+            errorMsgBox(nppWnd, L"Failed to open the rule management dialog.");
+        }
+    }
     else
         errorMsgBox(nppWnd, L"The plugin was not fully initialized.");
 }
@@ -422,8 +428,9 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
             for (rule = rules; rule; rule = rule->next)
                 execRule(0, L"C:\\foo.txt", rule);
 
-            // openQueueDlg(getNppWnd(), true, false, false);
-            openAboutDlg();
+            //openQueueDlg(getNppWnd(), true, false, false);
+            // openAboutDlg();
+            openRulesDlg(&rules);
         }
 
         break;

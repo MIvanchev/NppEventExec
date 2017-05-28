@@ -458,12 +458,15 @@ fail_rule:
     return NULL;
 }
 
-Rule* copyRules(const Rule *rules, Rule **last)
+int copyRules(const Rule *rules, Rule **first, Rule **last)
 {
     Rule *copiedRules;
     Rule *copiedLast;
     Rule *copy;
     const Rule *rule;
+
+    assert(first);
+    assert(last);
 
     copiedRules = NULL;
     copiedLast = NULL;
@@ -474,7 +477,7 @@ Rule* copyRules(const Rule *rules, Rule **last)
         {
             /* TODO error */
             freeRules(copiedRules);
-            return NULL;
+            return 1;
         }
 
         if (!copiedRules)
@@ -489,9 +492,12 @@ Rule* copyRules(const Rule *rules, Rule **last)
         }
     }
 
+    *first = copiedRules;
     *last = copiedLast;
-    return copiedRules;
+
+    return 0;
 }
+
 
 Rule* getRuleAt(Rule *rules, int pos)
 {

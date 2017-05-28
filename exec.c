@@ -436,22 +436,10 @@ void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime)
     if (prevCnt != queue.size)
     {
         if (isQueueDlgVisible())
-            processQueueEvent(
-                background ? QUEUE_REMOVE_BACKGROUND : QUEUE_REMOVE_FOREGROUND);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        {
+            processQueueEvent(background ? QUEUE_REMOVE_BACKGROUND
+                              : QUEUE_REMOVE_FOREGROUND);
+        }
     }
     else if (prevState != queue.first->state)
     {

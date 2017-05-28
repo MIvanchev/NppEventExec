@@ -950,7 +950,7 @@ bool resetRules(void)
 {
     Rule *copiedRules;
 
-    if (!(copiedRules = copyRules(*dlg->activeRules, &dlg->lastRule)))
+    if (copyRules(*dlg->activeRules, &copiedRules, &dlg->lastRule))
     {
         /* TODO error */
         return false;
@@ -987,7 +987,7 @@ bool saveRules(void)
             return false;
     }
 
-    if (!(rules = copyRules(dlg->rules, &lastRule)))
+    if (copyRules(dlg->rules, &rules, &lastRule))
     {
         /* TODO error */
         goto fail_copy;

@@ -38,7 +38,7 @@ int writeRules(Rule *rules);
 void freeRule(Rule *rule);
 void freeRules(Rule *rules);
 Rule* copyRule(const Rule *rule);
-Rule* copyRules(const Rule *rules, Rule **last);
+int copyRules(const Rule *rules, Rule **first, Rule **last);
 Rule* getRuleAt(Rule *rule, int pos);
 int getRuleCount(const Rule *rules);
 
