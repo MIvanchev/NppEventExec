@@ -317,8 +317,6 @@ int writeRules(Rule *rules)
     Rule *rule;
     size_t ii;
 
-    assert(rules);
-
     if (!(len = GetTempPathW(BUFLEN(tmpDirPath), tmpDirPath)))
     {
         /* TODO error */
