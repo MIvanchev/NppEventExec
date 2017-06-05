@@ -5,6 +5,8 @@
 
 A handy [Notepad++](https://github.com/notepad-plus-plus/notepad-plus-plus) plugin which allows you to automatically execute [NppExec](https://sourceforge.net/projects/npp-plugins/files/NppExec) scripts on Notepad++ events. Compatible with recent Notepad++ and NppExec versions; see  [Compatibility](#compatibility) for supported older versions.
 
+[![Demo thumbnail](https://raw.githubusercontent.com/MIvanchev/NppEventExec/master/demo/demo.png)](https://raw.githubusercontent.com/MIvanchev/NppEventExec/master/demo/demo.gif)
+
 ## Contents
 
 * [Introduction](#introduction)
