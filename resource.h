@@ -47,11 +47,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #define IDC_ST_ICONS_DISTRIBUTED 1009
 #define IDC_BT_ICONS_LICENSE     1010
 
-#define IDC_LV_QUEUE  2000
-#define IDC_BT_ABORT  2001
-#define IDC_BT_MODE   2002
-#define IDC_BT_CLOSE  2003
-#define IDC_BT_CANCEL 2004
+#define IDC_LV_QUEUE 2000
+#define IDC_BT_ABORT 2001
+#define IDC_BT_MODE  2002
 
 #define IDC_LV_RULES 3000
 #define IDC_BT_SAVE  3001

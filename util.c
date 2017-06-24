@@ -68,7 +68,8 @@ wchar_t* reallocStr(wchar_t *str, size_t unitCnt)
         /* TODO error */
         return NULL;
     }
-    else if (!(res = reallocMem(str, unitCnt * sizeof *res)))
+
+    if (!(res = reallocMem(str, unitCnt * sizeof *res)))
     {
         /* TODO error */
         return NULL;
@@ -89,34 +90,19 @@ void freeStr(wchar_t *str)
     freeMem(str);
 }
 
-size_t countChars(const wchar_t *str)
-{
-    size_t cnt = 0;
-
-    assert(str);
-
-    while (*str != L'\0')
-    {
-        str += IS_HIGH_SURROGATE(*str) ? 2 : 1;
-        cnt++;
-    }
-
-    return cnt;
-}
-
 wchar_t* getFilename(const wchar_t *path)
 {
     wchar_t *fname;
-    wchar_t *p;
+    wchar_t *chr;
 
     assert(path);
 
     fname = (wchar_t*) path;
 
-    for (p = fname; *p != L'\0'; p++)
+    for (chr = fname; *chr != L'\0'; chr++)
     {
-        if (*p == L'\\')
-            fname = p + 1;
+        if (*chr == L'\\')
+            fname = chr + 1;
     }
 
     return fname;
@@ -148,7 +134,9 @@ wchar_t* combinePaths(const wchar_t *parent, const wchar_t *child)
         return NULL;
     }
 
-    StringCchPrintfW(res, lenParent + lenChild + 2, L"%ls\\%ls", parent, child);
+    StringCchCopyW(res, lenParent + 1, parent);
+    res[lenParent] = L'\\';
+    StringCchCopyW(&res[lenParent + 1], lenChild + 1, child);
 
     return res;
 }

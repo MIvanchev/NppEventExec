@@ -32,6 +32,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "PluginInterface.h"
 #include "nppexec_msgs.h"
 
+#ifdef DEBUG
+#include <time.h>
+#endif
+
 static void initPlugin(NppData data);
 static void deinitPlugin(void);
 static bool validateModuleName(wchar_t **dir);
@@ -317,7 +321,13 @@ void onEditRules(void)
 void onExecQueue(void)
 {
     if (isPluginInit())
-        openQueueDlg(getNppWnd(), false, false, false);
+    {
+        if (openQueueDlg(getNppWnd(), QDLR_PLUGIN_MENU) == -1)
+        {
+            /* TODO error */
+            errorMsgBox(nppWnd, L"Failed to open the execution queue dialog.");
+        }
+    }
     else
         errorMsgBox(nppWnd, L"The plugin was not fully initialized.");
 }
@@ -428,9 +438,9 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
             for (rule = rules; rule; rule = rule->next)
                 execRule(0, L"C:\\foo.txt", rule);
 
-            //openQueueDlg(getNppWnd(), true, false, false);
+            openQueueDlg(getNppWnd(), QDLR_PLUGIN_MENU);
             // openAboutDlg();
-            openRulesDlg(&rules);
+            // openRulesDlg(&rules);
         }
 
         break;
@@ -443,10 +453,10 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
         {
             state = static_cast<DWORD*>(ci->info);
 
-            if (rand() < RAND_MAX / 20)
-                *state = NPE_EXECUTE_OK;
-            else
-                *state = NPE_EXECUTE_FAILED;
+            // if (rand() < RAND_MAX / 5)
+            // *state = NPE_EXECUTE_OK;
+            // else
+            *state = NPE_EXECUTE_FAILED;
         }
 
         break;
@@ -488,6 +498,8 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 int main(int argc, char *argv[])
 {
     MSG msg;
+
+    srand(time(NULL));
 
     pluginInst = GetModuleHandle(NULL);
     configDir = copyStr(L"config");
@@ -585,7 +597,7 @@ void beNotified(SCNotification *notification)
     if (hdr->code == NPPN_SHUTDOWN)
     {
         if (!isQueueEmpty()
-            && (res = openQueueDlg(getNppWnd(), true, true, false)) == -1)
+            && (res = openQueueDlg(getNppWnd(), QDLR_NPP_CLOSING)) == -1)
         {
             /* TODO error */
             emptyQueue();

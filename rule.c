@@ -159,6 +159,230 @@ fail_path:
     return 1;
 }
 
+int writeRules(Rule *rules)
+{
+    wchar_t tmpDirPath[MAX_PATH + 1];
+    wchar_t *tmpPath;
+    wchar_t *path;
+    size_t len;
+    Rule *rule;
+    size_t ii;
+
+    assert(rules);
+
+    if (!(len = GetTempPathW(BUFLEN(tmpDirPath), tmpDirPath)))
+    {
+        /* TODO error */
+        goto fail_tmp_dir;
+    }
+
+    tmpDirPath[len - 1] = L'\0';
+
+    if (!(tmpPath = combinePaths(tmpDirPath, FILENAME)))
+    {
+        /* TODO error */
+        goto fail_tmp_path;
+    }
+    if (csvCreate(tmpPath, BUFLEN(fields)))
+    {
+        /* TODO error */
+        goto fail_create;
+    }
+
+    for (ii = 0; ii < BUFLEN(fields); ii++)
+    {
+        if (csvWriteString(fields[ii].header))
+            goto fail_write;
+    }
+
+    for (rule = rules; rule; rule = rule->next)
+    {
+        for (ii = 0; ii < BUFLEN(fields); ii++)
+        {
+            if (fields[ii].writer(rule))
+                goto fail_write;
+        }
+    }
+
+    if (csvFlush())
+    {
+        /* TODO error */
+        goto fail_flush;
+    }
+
+    csvClose();
+
+    if (!(path = combinePaths(getPluginConfigDir(), FILENAME)))
+    {
+        /* TODO error */
+        goto fail_path;
+    }
+    if (!CopyFileW(tmpPath, path, FALSE))
+    {
+        /* TODO error */
+        goto fail_copy;
+    }
+    if (!DeleteFileW(tmpPath))
+    {
+        /* TODO warning */
+    }
+
+    freeStr(tmpPath);
+    freeStr(path);
+
+    return 0;
+
+fail_copy:
+    freeStr(path);
+fail_path:
+fail_flush:
+fail_write:
+    csvClose();
+fail_create:
+    freeStr(tmpPath);
+fail_tmp_path:
+fail_tmp_dir:
+    return 1;
+}
+
+void freeRule(Rule *rule)
+{
+    assert(rule);
+
+    freeStr(rule->name);
+    freeStr(rule->regex);
+    freeStr(rule->cmd);
+    freeMem(rule);
+}
+
+void freeRules(Rule *rules)
+{
+    Rule *rule;
+    Rule *next;
+
+    rule = rules;
+    while (rule)
+    {
+        next = rule->next;
+        freeRule(rule);
+        rule = next;
+    }
+}
+
+Rule* copyRule(const Rule *rule)
+{
+    Rule *copy;
+
+    assert(rule);
+    assert(rule->name);
+    assert(rule->regex);
+    assert(rule->cmd);
+
+    if (!(copy = allocMem(sizeof(Rule))))
+    {
+        /* TODO error */
+        goto fail_rule;
+    }
+    if (!(copy->name = copyStr(rule->name)))
+    {
+        /* TODO error */
+        goto fail_name;
+    }
+    if (!(copy->regex = copyStr(rule->regex)))
+    {
+        /* TODO error */
+        goto fail_regex;
+    }
+    if (!(copy->cmd = copyStr(rule->cmd)))
+    {
+        /* TODO error */
+        goto fail_cmd;
+    }
+
+    copy->event = rule->event;
+    copy->enabled = rule->enabled;
+    copy->background = rule->background;
+    copy->next = NULL;
+
+    return copy;
+
+fail_cmd:
+    freeStr(copy->regex);
+fail_regex:
+    freeStr(copy->name);
+fail_name:
+    freeMem(copy);
+fail_rule:
+    return NULL;
+}
+
+int copyRules(const Rule *rules, Rule **first, Rule **last)
+{
+    Rule *copiedRules;
+    Rule *copiedLast;
+    Rule *copy;
+    const Rule *rule;
+
+    assert(first);
+    assert(last);
+
+    copiedRules = NULL;
+    copiedLast = NULL;
+
+    for (rule = rules; rule; rule = rule->next)
+    {
+        if (!(copy = copyRule(rule)))
+        {
+            /* TODO error */
+            freeRules(copiedRules);
+            return 1;
+        }
+
+        if (!copiedRules)
+        {
+            copiedRules = copy;
+            copiedLast = copiedRules;
+        }
+        else
+        {
+            copiedLast->next = copy;
+            copiedLast = copiedLast->next;
+        }
+    }
+
+    *first = copiedRules;
+    *last = copiedLast;
+
+    return 0;
+}
+
+Rule* getRuleAt(Rule *rules, int pos)
+{
+    Rule *rule;
+
+    assert(rules);
+    assert(pos >= 0);
+
+    rule = rules;
+
+    for (; pos; pos--)
+        rule = rule->next;
+
+    return rule;
+}
+
+int getRuleCount(const Rule *rules)
+{
+    int cnt;
+
+    cnt = 0;
+
+    for (; rules; rules = rules->next)
+        cnt++;
+
+    return cnt;
+}
+
 int readEvent(Rule *rule)
 {
     return csvReadEvent(&rule->event);
@@ -306,219 +530,6 @@ int readBackground(Rule *rule)
 int writeBackground(Rule *rule)
 {
     return csvWriteBool(rule->background, BOOL_YES_NO);
-}
-
-int writeRules(Rule *rules)
-{
-    wchar_t tmpDirPath[MAX_PATH + 1];
-    wchar_t *tmpPath;
-    wchar_t *path;
-    size_t len;
-    Rule *rule;
-    size_t ii;
-
-    if (!(len = GetTempPathW(BUFLEN(tmpDirPath), tmpDirPath)))
-    {
-        /* TODO error */
-        goto fail_tmp_dir;
-    }
-
-    tmpDirPath[len - 1] = L'\0';
-
-    if (!(tmpPath = combinePaths(tmpDirPath, FILENAME)))
-    {
-        /* TODO error */
-        goto fail_tmp_path;
-    }
-    if (csvCreate(tmpPath, BUFLEN(fields)))
-    {
-        /* TODO error */
-        goto fail_create;
-    }
-
-    for (ii = 0; ii < BUFLEN(fields); ii++)
-    {
-        if (csvWriteString(fields[ii].header))
-            goto fail_write;
-    }
-
-    for (rule = rules; rule; rule = rule->next)
-    {
-        for (ii = 0; ii < BUFLEN(fields); ii++)
-        {
-            if (fields[ii].writer(rule))
-                goto fail_write;
-        }
-    }
-
-    if (csvFlush())
-    {
-        /* TODO error */
-        goto fail_flush;
-    }
-
-    csvClose();
-
-    if (!(path = combinePaths(getPluginConfigDir(), FILENAME)))
-    {
-        /* TODO error */
-        goto fail_path;
-    }
-    if (!CopyFileW(tmpPath, path, FALSE))
-    {
-        /* TODO error */
-        goto fail_copy;
-    }
-    if (!DeleteFileW(tmpPath))
-    {
-        /* TODO warning */
-    }
-
-    freeStr(tmpPath);
-    freeStr(path);
-
-    return 0;
-
-fail_copy:
-    freeStr(path);
-fail_path:
-fail_flush:
-fail_write:
-    csvClose();
-fail_create:
-    freeStr(tmpPath);
-fail_tmp_path:
-fail_tmp_dir:
-    return 1;
-}
-
-void freeRule(Rule *rule)
-{
-    freeStr(rule->name);
-    freeStr(rule->regex);
-    freeStr(rule->cmd);
-    freeMem(rule);
-}
-
-void freeRules(Rule *rules)
-{
-    Rule *rule;
-    Rule *next;
-
-    rule = rules;
-    while (rule)
-    {
-        next = rule->next;
-        freeRule(rule);
-        rule = next;
-    }
-}
-
-Rule* copyRule(const Rule *rule)
-{
-    Rule *copy;
-
-    if (!(copy = allocMem(sizeof(Rule))))
-    {
-        /* TODO error */
-        goto fail_rule;
-    }
-    if (!(copy->name = copyStr(rule->name)))
-    {
-        /* TODO error */
-        goto fail_name;
-    }
-    if (!(copy->regex = copyStr(rule->regex)))
-    {
-        /* TODO error */
-        goto fail_regex;
-    }
-    if (!(copy->cmd = copyStr(rule->cmd)))
-    {
-        /* TODO error */
-        goto fail_cmd;
-    }
-
-    copy->event = rule->event;
-    copy->enabled = rule->enabled;
-    copy->background = rule->background;
-    copy->next = NULL;
-
-    return copy;
-
-fail_cmd:
-    freeStr(copy->regex);
-fail_regex:
-    freeStr(copy->name);
-fail_name:
-    freeMem(copy);
-fail_rule:
-    return NULL;
-}
-
-int copyRules(const Rule *rules, Rule **first, Rule **last)
-{
-    Rule *copiedRules;
-    Rule *copiedLast;
-    Rule *copy;
-    const Rule *rule;
-
-    assert(first);
-    assert(last);
-
-    copiedRules = NULL;
-    copiedLast = NULL;
-
-    for (rule = rules; rule; rule = rule->next)
-    {
-        if (!(copy = copyRule(rule)))
-        {
-            /* TODO error */
-            freeRules(copiedRules);
-            return 1;
-        }
-
-        if (!copiedRules)
-        {
-            copiedRules = copy;
-            copiedLast = copiedRules;
-        }
-        else
-        {
-            copiedLast->next = copy;
-            copiedLast = copiedLast->next;
-        }
-    }
-
-    *first = copiedRules;
-    *last = copiedLast;
-
-    return 0;
-}
-
-
-Rule* getRuleAt(Rule *rules, int pos)
-{
-    Rule *rule;
-
-    rule = rules;
-
-    for (; pos; pos--)
-        rule = rule->next;
-
-    return rule;
-}
-
-int getRuleCount(const Rule *rules)
-{
-    int cnt;
-
-    cnt = 0;
-
-    for (; rules; rules = rules->next)
-        cnt++;
-
-    return cnt;
 }
 
 #ifdef DEBUG

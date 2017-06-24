@@ -63,8 +63,6 @@ int msgBox(UINT type,
            ...);
 int errorMsgBox(HWND parent, const wchar_t *format, ...);
 
-size_t countChars(const wchar_t *str);
-
 #ifdef __cplusplus
 }
 #endif

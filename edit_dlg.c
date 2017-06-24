@@ -473,14 +473,14 @@ void onClose(void)
 
     if (dlg->invalidCnt)
     {
-        choice = msgBox(MB_OKCANCEL,
+        choice = msgBox(MB_OKCANCEL | MB_ICONQUESTION,
                         dlg->handle,
                         L"Rule modified",
                         L"The changes contain errors; Click OK to leave the rule unchanged and close or click Cancel to fix the errors.");
     }
     else
     {
-        choice = msgBox(MB_YESNOCANCEL,
+        choice = msgBox(MB_YESNOCANCEL | MB_ICONQUESTION,
                         dlg->handle,
                         L"Rule modified",
                         L"Do you wish to apply the changes before closing?");
@@ -735,8 +735,8 @@ int validateChanges(void)
                 ctrl->status  = VAL_INVALID;
                 ctrl->updated = false;
 
-                StringCbCopy(buf, sizeof buf, L"^ ");
-                StringCbCat(buf, sizeof buf, errMsg);
+                StringCbCopyW(buf, sizeof buf, L"^ ");
+                StringCbCatW(buf, sizeof buf, errMsg);
                 SetWindowTextW(ctrl->labelError, buf);
                 ShowWindow(ctrl->labelError, SW_SHOW);
                 dlg->invalidCnt++;

@@ -977,13 +977,13 @@ bool saveRules(void)
 
     if (!isQueueEmpty())
     {
-        if ((res = openQueueDlg(dlg->handle, true, true, true)) == -1)
+        if ((res = openQueueDlg(dlg->handle, QDLR_SAVING_CHANGES)) == -1)
         {
             /* TODO error */
             goto fail_dlg;
         }
 
-        if (res == IDC_BT_CANCEL)
+        if (res == 1)
             return false;
     }
 
@@ -1058,7 +1058,7 @@ void askToSaveChanges(void)
         return;
     }
 
-    choice = msgBox(MB_YESNOCANCEL,
+    choice = msgBox(MB_YESNOCANCEL | MB_ICONQUESTION,
                     dlg->handle,
                     L"Unsaved changes",
                     L"Do you wish to save the changes made to the rule list before closing?");

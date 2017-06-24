@@ -77,6 +77,9 @@ int execRule(uptr_t bufId, const wchar_t *path, const Rule *rule)
         goto fail_too_many_execs;
     }
 
+    queue.size++;
+    queue.foregroundCnt += !rule->background;
+
     pathLen = wcslen(path);
     bufIdDigitCnt = countBufIdDigits(bufId);
 
@@ -110,6 +113,16 @@ int execRule(uptr_t bufId, const wchar_t *path, const Rule *rule)
 
         queue.first = exec;
         queue.last = exec;
+
+        /* If we're adding a background rule, try to pass it to Notepad++ for
+        ** execution immediately. However do NOT schedule a background rule at
+        ** this point, because the blocking dialog must be opened and this
+        ** could fail. Instead, the block dialog's initialization code is
+        ** responsible for updating the queue.
+        */
+
+        if (rule->background)
+            updateQueue();
     }
     else
     {
@@ -118,16 +131,13 @@ int execRule(uptr_t bufId, const wchar_t *path, const Rule *rule)
         queue.last = exec;
     }
 
-    queue.size++;
-    queue.foregroundCnt += !rule->background;
-
     if (isQueueDlgVisible())
     {
         processQueueEvent(
             rule->background ? QUEUE_ADD_BACKGROUND : QUEUE_ADD_FOREGROUND);
     }
-    else if (!rule->background
-             && openQueueDlg(getNppWnd(), false, true, false) == -1)
+    if (!rule->background
+        && openQueueDlg(getNppWnd(), QDLR_FOREGROUND_RULE) == -1)
     {
         /* TODO launch dialog */
         goto fail_dlg;
@@ -149,15 +159,13 @@ fail_dlg:
         queue.last->next = NULL;
     }
 
-    queue.foregroundCnt--;
-    queue.size--;
-
 fail_timer:
 fail_args:
     freeMem(exec);
 fail_alloc:
+    queue.foregroundCnt -= !rule->background;
+    queue.size--;
 fail_too_many_execs:
-
     return 1;
 }
 
@@ -241,9 +249,7 @@ unsigned int getQueueSize(unsigned int *foregroundCnt)
     return queue.size;
 }
 
-void abortExecs(int *positions,
-                unsigned int *queueSize,
-                unsigned int *foregroundCnt)
+void abortExecs(int *positions)
 {
     Exec *prevExec;
     Exec *currExec;
@@ -252,8 +258,6 @@ void abortExecs(int *positions,
     int ii;
 
     assert(positions);
-    assert(queueSize);
-    assert(foregroundCnt);
 
     prevExec = NULL;
     currExec = queue.first;
@@ -286,8 +290,6 @@ void abortExecs(int *positions,
     }
 
     queue.size -= ii;
-    *queueSize = queue.size;
-    *foregroundCnt = queue.foregroundCnt;
 }
 
 const wchar_t* getExecRule(unsigned int pos)

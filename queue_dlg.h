@@ -18,23 +18,22 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #ifndef __QUEUE_DLG_H__
 #define __QUEUE_DLG_H__
 
+typedef enum
+{
+    QDLR_PLUGIN_MENU,
+    QDLR_FOREGROUND_RULE,
+    QDLR_SAVING_CHANGES,
+    QDLR_NPP_CLOSING
+} QueueDlgLaunchReason;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /**
  * TODO
- * \param waitForAll TODO
- * \param autoClose set to true if the dialog should automatically close when
- *                  all rules of the required group are executed.
- * \param cancelable TODO
  */
-INT_PTR openQueueDlg(HWND parent,
-                     /*const wchar_t *title,*/
-                     /*const wchar_t *msg,*/
-                     bool waitForAll,
-                     bool autoClose,
-                     bool cancelable);
+INT_PTR openQueueDlg(HWND parent, QueueDlgLaunchReason reason);
 
 int isQueueDlgVisible(void);
 

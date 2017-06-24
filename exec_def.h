@@ -42,9 +42,7 @@ typedef enum
 void updateQueue(void);
 void stopQueue(void);
 unsigned int getQueueSize(unsigned int *foregroundCnt);
-void abortExecs(int *positions,
-                unsigned int *queueSize,
-                unsigned int *foregroundCnt);
+void abortExecs(int *positions);
 const wchar_t* getExecRule(unsigned int pos);
 ExecState getExecState(unsigned int pos);
 const wchar_t* getExecPath(unsigned int pos);

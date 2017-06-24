@@ -31,20 +31,18 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 typedef struct
 {
+    QueueDlgLaunchReason reason;
     HWND handle;
     HWND lvQueue;
     HWND btnMode;
     HWND btnAbort;
     HWND btnClose;
-    HWND btnCancel;
     LONG minWidth;
     LONG minHeight;
     int clientWidth;
     int clientHeight;
-    bool waitForAll;
-    bool closed;
+    bool closing;
     bool canceled;
-    bool cancelable;
     int maxPosDigits;
     /*const wchar_t *title;*/
     /*const wchar_t *msg;*/
@@ -71,7 +69,8 @@ static void onSize(LONG clientWidth, LONG clientHeight);
 static void onGetDispInfo(NMLVDISPINFO *dispInfo);
 static void onAbort(void);
 static void onClose(void);
-static void onCancel(void);
+static void onItemChanged(NMLISTVIEW *nmlv);
+static void onOdsStateChanged(NMLVODSTATECHANGE *nmosc);
 static void onQueueAdd(bool foreground);
 static void onQueueRemove(bool foreground);
 static void onQueueStatusUpdate(void);
@@ -81,21 +80,16 @@ static void compactPosEntries(void);
 static int countPosDigits(int pos);
 static void formatPos(wchar_t *buf, int pos);
 static bool tryCloseDlg(void);
-static bool tryCancelDlg(void);
-static void disableClosing(void);
+static void deferClosing(void);
 static void appendToTitle(const wchar_t *suffix);
 static void updateAbortBtn(void);
 
 static Dialog *dlg;
 
-INT_PTR openQueueDlg(HWND parent,
-                     /*const wchar_t *title,*/
-                     /*const wchar_t *msg,*/
-                     bool waitForAll,
-                     bool autoClose,
-                     bool cancelable)
+INT_PTR openQueueDlg(HWND parent, QueueDlgLaunchReason reason)
 {
     INT_PTR res;
+    bool canceled;
 
     if (!(dlg = allocMem(sizeof *dlg)))
     {
@@ -103,15 +97,19 @@ INT_PTR openQueueDlg(HWND parent,
         goto fail_mem;
     }
 
-    dlg->waitForAll = waitForAll;
-    dlg->closed = autoClose;
+    dlg->reason = reason;
     dlg->canceled = false;
-    dlg->cancelable = cancelable;
     dlg->posEntries = NULL;
+    dlg->posEntryCnt = 0;
 
     res = DialogBox(getPluginInstance(), MAKEINTRESOURCE(IDD_QUEUE), parent,
                     dlgProc);
 
+    /* Cache the value, because the memory is freed immediately. */
+
+    canceled = dlg->canceled;
+
+    freeStr(dlg->posEntries);
     freeMem(dlg);
     dlg = NULL;
 
@@ -121,7 +119,7 @@ INT_PTR openQueueDlg(HWND parent,
         goto fail_dlg;
     }
 
-    return res;
+    return canceled;
 
 fail_dlg:
 fail_mem:
@@ -160,10 +158,6 @@ BOOL CALLBACK dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
         onInitDlg(handle);
         return TRUE;
 
-    case WM_DESTROY:
-        freeStr(dlg->posEntries);
-        DLGPROC_RESULT(handle, 0);
-
     case WM_GETMINMAXINFO:
         ((MINMAXINFO*) lp)->ptMinTrackSize.x = dlg->minWidth;
         ((MINMAXINFO*) lp)->ptMinTrackSize.y = dlg->minHeight;
@@ -189,15 +183,7 @@ BOOL CALLBACK dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
             onAbort();
             DLGPROC_RESULT(handle, 0);
         case IDCANCEL:
-            if (!dlg->cancelable && !dlg->closed)
-                onClose();
-
-            DLGPROC_RESULT(handle, 0);
-        case IDC_BT_CLOSE:
             onClose();
-            DLGPROC_RESULT(handle, 0);
-        case IDC_BT_CANCEL:
-            onCancel();
             DLGPROC_RESULT(handle, 0);
         }
 
@@ -210,9 +196,11 @@ BOOL CALLBACK dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
             switch (((NMHDR*) lp)->code)
             {
             case LVN_ITEMCHANGED:
-                updateAbortBtn();
+                onItemChanged((NMLISTVIEW*) lp);
                 break;
-
+            case LVN_ODSTATECHANGED:
+                onOdsStateChanged((NMLVODSTATECHANGE*) lp);
+                break;
             case LVN_GETDISPINFO:
                 onGetDispInfo((NMLVDISPINFO*) lp);
                 break;
@@ -222,6 +210,7 @@ BOOL CALLBACK dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
 
         break;
     } /* switch (msg) */
+
 
     return FALSE;
 }
@@ -234,10 +223,7 @@ void onInitDlg(HWND handle)
     dlg->lvQueue = GetDlgItem(handle, IDC_LV_QUEUE);
     dlg->btnMode = GetDlgItem(handle, IDC_BT_MODE);
     dlg->btnAbort = GetDlgItem(handle, IDC_BT_ABORT);
-    dlg->btnClose = GetDlgItem(handle, IDC_BT_CLOSE);
-    dlg->btnCancel = GetDlgItem(handle, IDC_BT_CANCEL);
-    dlg->posEntries = NULL;
-    dlg->posEntryCnt = 0;
+    dlg->btnClose = GetDlgItem(handle, IDCANCEL);
 
     maxDigits = countPosDigits(INT_MAX);
 
@@ -271,15 +257,33 @@ void onInitDlg(HWND handle)
         {-1}
     });
 
+    /* If the dialog was opened, because a foreground rule was queued -- and
+    ** there are no other rules -- try to submit the rule to Notepad++ for
+    ** execution immediately instead of waiting for the first timer event. This
+    ** is not done upon the rule's addition, because of the possibility of the
+    ** dialog's creation failure and also since the dialog creation's function
+    ** does not return until the rule is executed.
+    */
+
+    if (dlg->reason == QDLR_FOREGROUND_RULE && dlg->queueSize == 1)
+        updateQueue();
+
     ListView_SetItemCount(dlg->lvQueue, dlg->queueSize);
 
-    if (dlg->closed)
-        disableClosing();
-
-    if (dlg->cancelable)
-        ShowWindow(dlg->btnClose, SW_HIDE);
-    else
-        ShowWindow(dlg->btnCancel, SW_HIDE);
+    switch (dlg->reason)
+    {
+    case QDLR_PLUGIN_MENU:
+        dlg->closing = false;
+        break;
+    case QDLR_SAVING_CHANGES:
+        dlg->closing = true;
+        SetWindowTextW(dlg->btnClose, L"Cancel");
+        break;
+    case QDLR_FOREGROUND_RULE:
+    case QDLR_NPP_CLOSING:
+        deferClosing();
+        break;
+    }
 
     EnableWindow(dlg->btnAbort, FALSE);
     EnableWindow(dlg->btnMode, FALSE);
@@ -333,7 +337,6 @@ void onSize(LONG clientWidth, LONG clientHeight)
         positionWnd(dlg->btnMode, btnModeRc.left, btnModeRc.top),
         positionWnd(dlg->btnAbort, btnAbortRc.left, btnAbortRc.top),
         positionWnd(dlg->btnClose, btnCloseLeft, btnCloseTop),
-        positionWnd(dlg->btnCancel, btnCloseLeft, btnCloseTop),
         {NULL}
     });
 }
@@ -383,12 +386,13 @@ void onGetDispInfo(NMLVDISPINFO *dispInfo)
 
 void onAbort(void)
 {
-    int positions[2];
+    int positions[16];
     int selectedCnt;
     int abortedCnt;
     int focusedItem;
     int posInList;
     int posInQueue;
+    bool firstSelected;
     int ii;
 
     assert(BUFLEN(positions) > 1);
@@ -407,65 +411,99 @@ void onAbort(void)
                                              LVNI_SELECTED);
             posInQueue = posInList - abortedCnt;
             positions[ii] = posInQueue;
+
+            firstSelected = !posInList;
         }
 
         positions[ii] = -1;
 
-        abortExecs(positions, &dlg->queueSize, &dlg->foregroundCnt);
+        abortExecs(positions);
 
         abortedCnt += ii;
         selectedCnt -= ii;
     }
     while (selectedCnt);
 
-    if (!(dlg->canceled && tryCancelDlg())
-        && !(dlg->closed && tryCloseDlg()))
+    dlg->queueSize = getQueueSize(&dlg->foregroundCnt);
+
+    if (!(dlg->closing && tryCloseDlg()))
     {
         compactPosEntries();
 
-        /* IMPORTANT: Adjust the count before deselecting all items. */
-
-        ListView_SetItemCount(dlg->lvQueue, dlg->queueSize);
-        ListView_SetItemState(dlg->lvQueue, -1, 0,
-                              LVIS_SELECTED | LVIS_FOCUSED);
-
-        if (dlg->queueSize && focusedItem != -1)
+        if (dlg->queueSize)
         {
-            focusedItem = (unsigned int) focusedItem <
-                          dlg->queueSize ? focusedItem : dlg->queueSize - 1;
+            if (firstSelected)
+                updateQueue();
 
-            ListView_SetItemState(dlg->lvQueue,
-                                  focusedItem,
-                                  LVIS_SELECTED | LVIS_FOCUSED,
+            /* IMPORTANT: Adjust the count before deselecting all items. */
+
+            ListView_SetItemCount(dlg->lvQueue, dlg->queueSize);
+            ListView_SetItemState(dlg->lvQueue, -1, 0,
                                   LVIS_SELECTED | LVIS_FOCUSED);
-            ListView_EnsureVisible(dlg->lvQueue, focusedItem, FALSE);
-            SetFocus(dlg->lvQueue);
+
+            if (focusedItem != -1)
+            {
+                focusedItem = (unsigned int) focusedItem <
+                              dlg->queueSize ? focusedItem : dlg->queueSize - 1;
+
+                ListView_SetItemState(dlg->lvQueue,
+                                      focusedItem,
+                                      LVIS_SELECTED | LVIS_FOCUSED,
+                                      LVIS_SELECTED | LVIS_FOCUSED);
+                ListView_EnsureVisible(dlg->lvQueue, focusedItem, FALSE);
+            }
+        }
+        else
+        {
+            ListView_SetItemCount(dlg->lvQueue, 0);
+            EnableWindow(dlg->btnAbort, FALSE);
         }
 
-        updateAbortBtn();
-
-        if (dlg->queueSize)
-            updateQueue();
+        SetFocus(dlg->lvQueue);
     }
 }
 
 void onClose(void)
 {
-    if (!tryCloseDlg())
+    int choice;
+
+    if (dlg->reason == QDLR_SAVING_CHANGES)
     {
-        dlg->closed = true;
-        disableClosing();
+        choice = msgBox(MB_YESNO | MB_ICONQUESTION,
+                        dlg->handle,
+                        L"Cancel",
+                        L"Are you sure you want to cancel saving the changes to the rule list?");
+
+        if (choice == IDYES)
+        {
+            dlg->canceled = true;
+
+            if (!tryCloseDlg())
+            {
+                deferClosing();
+                appendToTitle(L"(canceled)");
+            }
+        }
+    }
+    else if (!tryCloseDlg())
+    {
+        deferClosing();
         appendToTitle(L"(closing)");
     }
 }
 
-void onCancel(void)
+void onItemChanged(NMLISTVIEW *nmlv)
 {
-    if (!tryCancelDlg())
+    if ((nmlv->uNewState & LVIS_SELECTED) != (nmlv->uOldState & LVIS_SELECTED))
+        updateAbortBtn();
+}
+
+void onOdsStateChanged(NMLVODSTATECHANGE *nmosc)
+{
+    if ((nmosc->uNewState & LVIS_SELECTED)
+        != (nmosc->uOldState & LVIS_SELECTED))
     {
-        dlg->canceled = true;
-        EnableWindow(dlg->btnCancel, FALSE);
-        appendToTitle(L"(canceling)");
+        updateAbortBtn();
     }
 }
 
@@ -486,11 +524,8 @@ void onQueueRemove(bool foreground)
     dlg->queueSize--;
     dlg->foregroundCnt -= foreground;
 
-    if ((dlg->canceled && tryCancelDlg())
-        || (dlg->closed && tryCloseDlg()))
-    {
+    if (dlg->closing && tryCloseDlg())
         return;
-    }
 
     compactPosEntries();
 
@@ -707,31 +742,46 @@ void formatPos(wchar_t *buf, int pos)
 
 bool tryCloseDlg(void)
 {
-    if ((dlg->waitForAll && !dlg->queueSize)
-        || (!dlg->waitForAll && !dlg->foregroundCnt))
+    switch (dlg->reason)
     {
-        EndDialog(dlg->handle, IDC_BT_CLOSE);
-        return true;
-    }
-    return false;
-}
+    case QDLR_SAVING_CHANGES:
+        if ((dlg->canceled && !dlg->foregroundCnt) || !dlg->queueSize)
+        {
+            EndDialog(dlg->handle, IDCANCEL);
+            return true;
+        }
 
-bool tryCancelDlg(void)
-{
+        return false;
+
+    case QDLR_NPP_CLOSING:
+        if (!dlg->queueSize)
+        {
+            EndDialog(dlg->handle, IDCANCEL);
+            return true;
+        }
+
+        return false;
+
+    default:
+        break;
+    }
+
     if (!dlg->foregroundCnt)
     {
-        EndDialog(dlg->handle, IDC_BT_CANCEL);
+        EndDialog(dlg->handle, IDCANCEL);
         return true;
     }
+
     return false;
 }
 
-void disableClosing(void)
+void deferClosing(void)
 {
     UINT flags;
     flags = MF_BYCOMMAND | MF_DISABLED | MF_GRAYED;
     EnableMenuItem(GetSystemMenu(dlg->handle, FALSE), SC_CLOSE, flags);
     EnableWindow(dlg->btnClose, FALSE);
+    dlg->closing = true;
 }
 
 void appendToTitle(const wchar_t *suffix)
@@ -750,9 +800,6 @@ void updateAbortBtn(void)
     BOOL enabled;
 
     curr = ListView_GetNextItem(dlg->lvQueue, -1, LVNI_SELECTED);
-
     enabled = curr != -1 && (curr || getExecState(curr) != STATE_EXECUTING);
-
-    if (IsWindowEnabled(dlg->btnAbort) != enabled)
-        EnableWindow(dlg->btnAbort, enabled);
+    EnableWindow(dlg->btnAbort, enabled);
 }
