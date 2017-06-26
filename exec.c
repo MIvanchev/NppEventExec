@@ -283,11 +283,8 @@ void abortExecs(int *positions)
             queue.first = currExec;
     }
 
-    if (!currExec)
-    {
+    if (!currExec && !(queue.last = prevExec))
         stopQueue();
-        queue.last = NULL;
-    }
 
     queue.size -= ii;
 }
