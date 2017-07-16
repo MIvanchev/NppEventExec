@@ -1,0 +1,5 @@
+variable,value,user
+maxRadius,30,admin
+allowUserCode,yes,admin
+placeholderForEmptyName,"George" ,admin
+cacheTimeoutInMs,600,robin

@@ -1,0 +1,9 @@
+Run events on random intervals?,Event to be run at random intervals,Warning on failure,Run events on specific intervals?,Event to be run at specific intervals,Warning on failure
+yEs,"  NPPN_SHUTDOWN ","SOMETHING WENT WRONG!
+
+ABORT
+RETRY
+CANCEL
+",nO,NPPN_CANCELSHUTDOWN,
+TRUE,NPPN_DOCORDERCHANGED,Failed to report a changed document order.,1,NPPN_SHORTCUTREMAPPED,"A shortcut remapping will go unnoticed..."
+on,NPPN_FILERENAMED,"Изпращането на съобщение за преименуване на файл беше неуспешно.",no,NPPN_FILECLOSED,
