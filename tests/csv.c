@@ -28,6 +28,7 @@ declare_assert(any_str_read);
 declare_assert(bool_read, bool val);
 declare_assert(event_read, unsigned int val);
 declare_assert(str_read, const wchar_t *val);
+declare_assert(char_and_unit_length, size_t charCnt, size_t unitCnt);
 
 #define assert_file_open(fieldCnt, header) \
     call_assert_proc(file_open, fieldCnt, header)
@@ -36,21 +37,63 @@ declare_assert(str_read, const wchar_t *val);
 #define assert_bool_read(val)  call_assert_proc(bool_read, val)
 #define assert_event_read(val) call_assert_proc(event_read, val)
 #define assert_str_read(val)   call_assert_proc(str_read, val)
+#define assert_char_and_unit_length(charCnt, unitCnt) \
+    call_assert_proc(char_and_unit_length, charCnt, unitCnt);
+
+#define assert_success()                                   \
+    if (csvOpen(L"csv\\success.csv", 2, 1))                \
+        cr_fail("Failed to open the success test file.");  \
+                                                           \
+    assert_any_str_read();                                 \
+    assert_any_str_read();                                 \
+    assert_any_str_read();                                 \
+    assert_any_str_read();                                 \
+    assert_any_str_read();                                 \
+    assert_any_str_read();                                 \
+    assert_file_read()
+
+#define assert_failure()                                                    \
+    if (csvOpen(L"csv\\failure.csv", 2, 1))                                 \
+        cr_fail("Failed to open the failure test file.");                   \
+                                                                            \
+    assert_any_str_read();                                                  \
+    assert_any_str_read();                                                  \
+                                                                            \
+    if ((val = csvReadString(&charCnt, &unitCnt)))                          \
+    {                                                                       \
+        csvClose();                                                         \
+        cr_fail("Expected syntax error because of an invalid column "       \
+                "separator did not occur; a string was correctly parsed."); \
+    }                                                                       \
+                                                                            \
+    csvClose()
 
 static void fini(void);
 
 TestSuite(csv, .fini = fini);
 
-Test(csv, success_after_failure, .disabled=true) {
-    /* TODO */
+Test(csv, success_after_failure)
+{
+    wchar_t *val;
+    size_t unitCnt;
+    size_t charCnt;
+
+    assert_failure();
+    assert_success();
 }
 
-Test(csv, failure_after_success, .disabled=true) {
-    /* TODO */
+Test(csv, failure_after_success) {
+    wchar_t *val;
+    size_t unitCnt;
+    size_t charCnt;
+
+    assert_success();
+    assert_failure();
 }
 
-Test(csv, success_after_success, .disabled=true) {
-    /* TODO */
+Test(csv, success_after_success) {
+    assert_success();
+    assert_success();
 }
 
 Test(csv, nl_at_eof) {
@@ -327,7 +370,19 @@ Test(csv, mixed) {
 }
 
 Test(csv, char_and_unit_length, .disabled=true) {
-    /* TODO */
+/*
+    assert_file_open(3, 1);
+    assert_char_and_unit_length();
+    assert_char_and_unit_length();
+    assert_char_and_unit_length();
+    assert_char_and_unit_length();
+    assert_char_and_unit_length();
+    assert_char_and_unit_length();
+    assert_char_and_unit_length();
+    assert_char_and_unit_length();
+    assert_char_and_unit_length();
+    assert_file_read();
+*/
 }
 
 Test(csv, unescaped_quote)
@@ -481,7 +536,7 @@ define_assert(str_read, const wchar_t *val) {
         csvClose();
         cr_assert_failure("Failed to read a string.");
     }
-    else if (wcscmp(val, str))
+    if (wcscmp(val, str))
     {
         freeStr(str);
         csvClose();
@@ -490,6 +545,37 @@ define_assert(str_read, const wchar_t *val) {
     }
 
     freeStr(str);
+}
+
+define_assert(char_and_unit_length, size_t charCnt, size_t unitCnt) {
+    wchar_t *str;
+    size_t charCntActual;
+    size_t unitCntActual;
+
+    if (!(str = csvReadString(&charCnt, &unitCnt)))
+    {
+        csvClose();
+        cr_assert_failure("Failed to read a string.");
+    }
+
+    freeStr(str);
+
+    if (charCnt != charCntActual)
+    {
+        csvClose();
+        cr_assert_failure("Read a string consisting of %zu characters, but a "
+                          "length of %zu characters was expected.",
+                          charCntActual, charCnt);
+    }
+    if (unitCnt != unitCntActual)
+    {
+        csvClose();
+        cr_assert_failure("Read a string consisting of %zu UTF-16 units, but a "
+                          "length of %zu UTF-16 units was expected.",
+                          unitCntActual, unitCnt);
+    }
+
+    csvClose();
 }
 
 void fini(void)
