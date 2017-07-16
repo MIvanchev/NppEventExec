@@ -109,7 +109,8 @@ extern "C" {
 #define IS_HIGH_SURROGATE(code) (((code) & 0xF800) == 0xD800)
 #endif
 
-#define IS_SPACE(chr) ((chr) == L' ' || (chr) == L'\t')
+#define IS_SPACE(chr) \
+    ((chr) == L' ' || (chr) == L'\t' || (chr) == L'\r' || (chr) == L'\n')
 
 #define STRA(x)  # x
 #define STRW_(x) L ## x

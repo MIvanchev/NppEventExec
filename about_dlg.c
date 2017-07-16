@@ -178,6 +178,8 @@ void onInitDlg(HWND dlg)
     SET_LINK_FONT(IDC_BT_ICONS_AHASOFT);
     SET_LINK_FONT(IDC_BT_ICONS_LICENSE);
 
+#undef SET_LINK_FONT
+
     layoutDlg();
     centerWndToParent(dlg);
     SetFocus(GetDlgItem(dlg, IDOK));
@@ -188,7 +190,7 @@ void onDrawItem(DRAWITEMSTRUCT *dis)
     HWND ctrl;
     HDC dc;
     RECT *rc;
-    RECT rc1;
+    RECT rcTxt;
     wchar_t content[256];
     COLORREF prevClr;
 
@@ -199,9 +201,9 @@ void onDrawItem(DRAWITEMSTRUCT *dis)
     dc = dis->hDC;
     rc = &dis->rcItem;
 
-    CopyRect(&rc1, rc);
-    rc1.top += 1;
-    rc1.bottom -= 1;
+    CopyRect(&rcTxt, rc);
+    rcTxt.top += 1;
+    rcTxt.bottom -= 1;
 
     FillRect(dc, rc, (HBRUSH) (COLOR_3DFACE + 1));
     GetWindowTextW(ctrl, content, BUFLEN(content));
@@ -209,13 +211,13 @@ void onDrawItem(DRAWITEMSTRUCT *dis)
     if (dis->CtlType == ODT_BUTTON)
     {
         prevClr = SetTextColor(dc, RGB(0, 0, 255));
-        DrawTextW(dc, content, (int) wcslen(content), &rc1,
+        DrawTextW(dc, content, (int) wcslen(content), &rcTxt,
                   DT_CENTER | DT_SINGLELINE);
         SetTextColor(dc, prevClr);
     }
     else
     {
-        DrawTextW(dc, content, wcslen(content), &rc1,
+        DrawTextW(dc, content, wcslen(content), &rcTxt,
                   DT_CENTER | DT_SINGLELINE);
     }
 

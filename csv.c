@@ -50,7 +50,8 @@ typedef enum
     ST_UNQUOTED,
     ST_QUOTE,
     ST_QUOTED_EOL,
-    ST_EOL
+    ST_EOL,
+    ST_EOF
 } ParserState;
 
 static int readHeader(void);
@@ -98,6 +99,15 @@ int csvOpen(const wchar_t *path, size_t _fieldCnt, int header)
         /* TODO error */
         goto fail_alloc;
     }
+
+    /* While technically it's not neccessary to zero the byte buffer length
+    ** here, there's a useful assertion in readBytes which makes sure the
+    ** method is only called when it's supposed to. So without the assignment,
+    ** a failed read operation could leave the length unzeroed so a subsequent
+    ** calls to this method will raise the assertion.
+    */
+
+    byteBufLen = 0;
 
     fieldCnt = _fieldCnt;
     remFieldCnt = fieldCnt;
@@ -485,7 +495,6 @@ int readValue(wchar_t *buf, size_t bufLen)
 int readChar(wchar_t *chr)
 {
     assert(chr);
-    assert(byteBufLen);
 
     while (byteBufLen)
     {
@@ -595,10 +604,12 @@ int readChar(wchar_t *chr)
             case L'"':
                 state = ST_QUOTED;
                 break;
+            default:
+                /* TODO error */
+                goto fail_syntax;
             }
 
-            /* TODO error */
-            goto fail_syntax;
+            break;
         }
 
         return IS_HIGH_SURROGATE(*chr) ? 2 : 1;
@@ -623,6 +634,12 @@ int readChar(wchar_t *chr)
             /* TODO error */
             goto fail_syntax;
         }
+
+        state = ST_EOF;
+        break;
+    case ST_EOF:
+        /* TODO error */
+        goto fail_eof;
     }
 
     return 0;
@@ -633,6 +650,7 @@ next_field:
     state = ST_INITIAL;
     return 0;
 
+fail_eof:
 fail_syntax:
 fail_char:
     return -1;
@@ -678,32 +696,38 @@ int nextChar(wchar_t *chr)
     seqLen = UTF8_SEQ_LEN[unit];
     code = unit & ((1 << (6 - seqLen)) - 1);
 
+#define READ_CONT_BYTES(val)            \
+    switch (val) {                      \
+    case 3: READ_CONT_BYTES_(3); break; \
+    case 2: READ_CONT_BYTES_(2); break; \
+    case 1: READ_CONT_BYTES_(1); break; \
+    }
+
+#define READ_CONT_BYTES_(len)     \
+    if (CHECK_CONT_BYTES_ ## len) \
+    {                             \
+        /* TODO error */          \
+        return 1;                 \
+    }                             \
+    READ_CONT_BYTES_ ## len
+
+#define CHECK_CONT_BYTES_3 INVALID_CONT_BYTE(2) || CHECK_CONT_BYTES_2
+#define CHECK_CONT_BYTES_2 INVALID_CONT_BYTE(1) || CHECK_CONT_BYTES_1
+#define CHECK_CONT_BYTES_1 INVALID_CONT_BYTE(0)
+#define INVALID_CONT_BYTE(pos) ((*(byteBufPtr + pos) >> 6) != 2)
+#define READ_CONT_BYTES_3 READ_CONT_BYTE; READ_CONT_BYTES_2
+#define READ_CONT_BYTES_2 READ_CONT_BYTE; READ_CONT_BYTES_1
+#define READ_CONT_BYTES_1 READ_CONT_BYTE
+#define READ_CONT_BYTE    code = (code << 6) | (*byteBufPtr++ & 0x3F)
+
     if (seqLen < byteBufLen)
     {
-        switch (seqLen)
-        {
-        case 3:
-            code = (code << 6) | (*byteBufPtr++ & 0x3F);
-        case 2:
-            code = (code << 6) | (*byteBufPtr++ & 0x3F);
-        case 1:
-            code = (code << 6) | (*byteBufPtr++ & 0x3F);
-        }
-
+        READ_CONT_BYTES(seqLen);
         byteBufLen -= seqLen;
     }
     else
     {
-        switch (byteBufLen)
-        {
-        case 3:
-            code = (code << 6) | (*byteBufPtr++ & 0x3F);
-        case 2:
-            code = (code << 6) | (*byteBufPtr++ & 0x3F);
-        case 1:
-            code = (code << 6) | (*byteBufPtr++ & 0x3F);
-        }
-
+        READ_CONT_BYTES(byteBufLen);
         seqLen -= (unsigned char) byteBufLen; /* We know byteLen <= seqLen */
         byteBufLen = 0;
 
@@ -718,18 +742,20 @@ int nextChar(wchar_t *chr)
             return 1;
         }
 
-        switch (seqLen)
-        {
-        case 3:
-            code = (code << 6) | (*byteBufPtr++ & 0x3F);
-        case 2:
-            code = (code << 6) | (*byteBufPtr++ & 0x3F);
-        case 1:
-            code = (code << 6) | (*byteBufPtr++ & 0x3F);
-        }
-
+        READ_CONT_BYTES(seqLen);
         byteBufLen -= seqLen;
     }
+
+#undef READ_CONT_BYTES
+#undef READ_CONT_BYTES_
+#undef CHECK_CONT_BYTES_3
+#undef CHECK_CONT_BYTES_2
+#undef CHECK_CONT_BYTES_1
+#undef INVALID_CONT_BYTE
+#undef READ_CONT_BYTES_3
+#undef READ_CONT_BYTES_2
+#undef READ_CONT_BYTES_1
+#undef READ_CONT_BYTE
 
     if ((code & 0xF800) == 0xD800)
     {
@@ -873,6 +899,9 @@ int writeValue(const wchar_t *str, bool escape)
             break;
         }
     }
+
+#undef WRITE_LEADING_FAILED
+#undef WRITE_CONT_FAILED
 
     if (remFieldCnt > 1)
     {
