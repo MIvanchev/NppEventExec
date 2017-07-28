@@ -80,7 +80,7 @@ int csvOpen(const wchar_t *path, size_t _fieldCnt, int header)
 
     file = CreateFileW(path,
                        GENERIC_READ,
-                       FILE_SHARE_READ, /* Other procs can read too */
+                       0,
                        NULL,
                        OPEN_EXISTING,
                        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
@@ -627,6 +627,7 @@ int readChar(wchar_t *chr)
         /* TODO error */
         goto fail_syntax;
     case ST_INITIAL:
+        remFieldCnt--;
     case ST_UNQUOTED:
     case ST_QUOTE:
         if (remFieldCnt)
@@ -664,7 +665,7 @@ int nextChar(wchar_t *chr)
 
     assert(chr);
     assert(byteBufLen);
-    assert(BYTE_BUF_SIZE_READ >= 3);
+    assert(BYTE_BUF_SIZE_READ > 3);
 
     unit = *byteBufPtr++;
     byteBufLen--;
@@ -697,7 +698,7 @@ int nextChar(wchar_t *chr)
     code = unit & ((1 << (6 - seqLen)) - 1);
 
 #define READ_CONT_BYTES(val)            \
-    switch (val) {                      \
+    switch ((val)) {                    \
     case 3: READ_CONT_BYTES_(3); break; \
     case 2: READ_CONT_BYTES_(2); break; \
     case 1: READ_CONT_BYTES_(1); break; \
@@ -706,6 +707,7 @@ int nextChar(wchar_t *chr)
 #define READ_CONT_BYTES_(len)     \
     if (CHECK_CONT_BYTES_ ## len) \
     {                             \
+                                  \
         /* TODO error */          \
         return 1;                 \
     }                             \
@@ -714,7 +716,7 @@ int nextChar(wchar_t *chr)
 #define CHECK_CONT_BYTES_3 INVALID_CONT_BYTE(2) || CHECK_CONT_BYTES_2
 #define CHECK_CONT_BYTES_2 INVALID_CONT_BYTE(1) || CHECK_CONT_BYTES_1
 #define CHECK_CONT_BYTES_1 INVALID_CONT_BYTE(0)
-#define INVALID_CONT_BYTE(pos) ((*(byteBufPtr + pos) >> 6) != 2)
+#define INVALID_CONT_BYTE(pos) ((*(byteBufPtr + (pos)) >> 6) != 2)
 #define READ_CONT_BYTES_3 READ_CONT_BYTE; READ_CONT_BYTES_2
 #define READ_CONT_BYTES_2 READ_CONT_BYTE; READ_CONT_BYTES_1
 #define READ_CONT_BYTES_1 READ_CONT_BYTE
@@ -757,7 +759,7 @@ int nextChar(wchar_t *chr)
 #undef READ_CONT_BYTES_1
 #undef READ_CONT_BYTE
 
-    if ((code & 0xF800) == 0xD800)
+    if ((code & 0xFFFFF000) == 0xD800)
     {
         /* TODO error */
         return 1;
