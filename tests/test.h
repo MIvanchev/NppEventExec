@@ -15,6 +15,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#ifndef __TEST_H__
+#define __TEST_H__
+
 #include <assert.h>
 #include <criterion/criterion.h>
 #include <criterion/new/assert.h>
@@ -64,3 +67,5 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
                         ASSERT_LINENUM_ID,    \
                         criterion_abort_test, \
                         __VA_ARGS__)
+
+#endif /* __TEST_H__ */

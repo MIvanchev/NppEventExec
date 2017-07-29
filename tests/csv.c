@@ -18,9 +18,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "test.h"
 #include "event_map.h"
 #include "csv.h"
+#include "csv_gen.h"
 #include "mem.h"
 #include "util.h"
 #include "Notepad_plus_msgs.h"
+#include <time.h>
 
 declare_assert(file_open, int fieldCnt, int header);
 declare_assert(file_read);
@@ -40,35 +42,41 @@ declare_assert(char_and_unit_length, size_t charCnt, size_t unitCnt);
 #define assert_char_and_unit_length(charCnt, unitCnt) \
     call_assert_proc(char_and_unit_length, charCnt, unitCnt);
 
-#define assert_success()                                   \
-    if (csvOpen(L"csv\\success.csv", 2, 1))                \
-        cr_fail("Failed to open the success test file.");  \
-                                                           \
-    assert_any_str_read();                                 \
-    assert_any_str_read();                                 \
-    assert_any_str_read();                                 \
-    assert_any_str_read();                                 \
-    assert_any_str_read();                                 \
-    assert_any_str_read();                                 \
+#define assert_success()                                    \
+    if (csvOpen(L"csv\\success.csv", 2, 1))                 \
+        cr_fatal("Failed to open the success test file.");  \
+                                                            \
+    assert_any_str_read();                                  \
+    assert_any_str_read();                                  \
+    assert_any_str_read();                                  \
+    assert_any_str_read();                                  \
+    assert_any_str_read();                                  \
+    assert_any_str_read();                                  \
     assert_file_read()
 
-#define assert_failure()                                                    \
-    if (csvOpen(L"csv\\failure.csv", 2, 1))                                 \
-        cr_fail("Failed to open the failure test file.");                   \
-                                                                            \
-    assert_any_str_read();                                                  \
-    assert_any_str_read();                                                  \
-                                                                            \
-    if ((val = csvReadString(&charCnt, &unitCnt)))                          \
-    {                                                                       \
-        csvClose();                                                         \
-        cr_fail("Expected syntax error because of an invalid column "       \
-                "separator did not occur; a string was correctly parsed."); \
-    }                                                                       \
-                                                                            \
+#define assert_failure()                                                     \
+    if (csvOpen(L"csv\\failure.csv", 2, 1))                                  \
+        cr_fatal("Failed to open the failure test file.");                   \
+                                                                             \
+    assert_any_str_read();                                                   \
+    assert_any_str_read();                                                   \
+                                                                             \
+    if ((val = csvReadString(&charCnt, &unitCnt)))                           \
+    {                                                                        \
+        csvClose();                                                          \
+        cr_fatal("Expected syntax error because of an invalid column "       \
+                 "separator did not occur; a string was correctly parsed."); \
+    }                                                                        \
+                                                                             \
     csvClose()
 
+/** TODO */
+#define HARNESS_ITERATIONS 256
+
 static void fini(void);
+static void finiHarness(void);
+
+static CsvData *csvData;
 
 TestSuite(csv, .fini = fini);
 
@@ -134,8 +142,8 @@ Test(csv, cr_instead_of_crlf) {
     {
         freeStr(val);
         csvClose();
-        cr_fail("Expected syntax error because of an malformed newline "
-                "sequence did not occur; a string was correctly parsed.");
+        cr_fatal("Expected syntax error because of an malformed newline "
+                 "sequence did not occur; a string was correctly parsed.");
     }
 
     csvClose();
@@ -155,8 +163,8 @@ Test(csv, lf_instead_of_crlf) {
     {
         freeStr(val);
         csvClose();
-        cr_fail("Expected syntax error because of an malformed newline "
-                "sequence did not occur; a string was correctly parsed.");
+        cr_fatal("Expected syntax error because of an malformed newline "
+                 "sequence did not occur; a string was correctly parsed.");
     }
 
     csvClose();
@@ -175,8 +183,8 @@ Test(csv, less_columns_than_expected) {
     {
         freeStr(val);
         csvClose();
-        cr_fail("Expected syntax error because of a wrong number of columns "
-                "did not occur; a string was correctly parsed.");
+        cr_fatal("Expected syntax error because of a wrong number of columns "
+                 "did not occur; a string was correctly parsed.");
     }
 
     csvClose();
@@ -196,8 +204,8 @@ Test(csv, more_columns_than_expected) {
     {
         freeStr(val);
         csvClose();
-        cr_fail("Expected syntax error because of a wrong number of columns "
-                "did not occur; a string was correctly parsed.");
+        cr_fatal("Expected syntax error because of a wrong number of columns "
+                 "did not occur; a string was correctly parsed.");
     }
 
     csvClose();
@@ -216,9 +224,9 @@ Test(csv, space_before_quote) {
     {
         freeStr(val);
         csvClose();
-        cr_fail("Expected syntax error because of whitespace before an "
-                "opening quote did not occur; a string was correctly "
-                "parsed.");
+        cr_fatal("Expected syntax error because of whitespace before an "
+                 "opening quote did not occur; a string was correctly "
+                 "parsed.");
     }
 
     csvClose();
@@ -242,8 +250,8 @@ Test(csv, space_after_quote) {
     {
         freeStr(val);
         csvClose();
-        cr_fail("Expected syntax error because of whitespace after a closing "
-                "quote did not occur; a string was correctly parsed.");
+        cr_fatal("Expected syntax error because of whitespace after a closing "
+                 "quote did not occur; a string was correctly parsed.");
     }
 
     csvClose();
@@ -398,8 +406,8 @@ Test(csv, unescaped_quote)
     {
         freeStr(val);
         csvClose();
-        cr_fail("Expected syntax error because of an unescaped quote did not "
-                "occur; a string was correctly parsed.");
+        cr_fatal("Expected syntax error because of an unescaped quote did not "
+                 "occur; a string was correctly parsed.");
     }
 
     csvClose();
@@ -418,8 +426,8 @@ Test(csv, unmatched_quote)
     {
         freeStr(val);
         csvClose();
-        cr_fail("Expected syntax error because of an unmatched quote did not "
-                "occur; a string was correctly parsed.");
+        cr_fatal("Expected syntax error because of an unmatched quote did not "
+                 "occur; a string was correctly parsed.");
     }
 
     csvClose();
@@ -441,8 +449,8 @@ Test(csv, invalid_utf8_seq)
     {
         freeStr(val);
         csvClose();
-        cr_fail("Expected error because of an invalid UTF-8 encoding sequence "
-                "did not occur; a string was correctly parsed.");
+        cr_fatal("Expected error because of an invalid UTF-8 encoding sequence "
+                 "did not occur; a string was correctly parsed.");
     }
 
     csvClose();
@@ -578,6 +586,62 @@ define_assert(char_and_unit_length, size_t charCnt, size_t unitCnt) {
     csvClose();
 }
 
+Test(csv, harness, .fini = finiHarness) {
+    unsigned int ii;
+    unsigned int jj;
+    unsigned int kk;
+
+    assert(!csvData);
+    assert(HARNESS_ITERATIONS < UINT_MAX);
+
+    srand(time(NULL) % UINT_MAX);
+
+    for (ii = 0; ii < 256; ii++)
+    {
+        if (!(csvData = genCsv()))
+            cr_fatal("Failed to generate the CSV data.");
+
+        assert_file_open(csvData->columnCnt, csvData->hdr);
+
+        for (jj = 0; jj < csvData->recordCnt; jj++)
+        {
+            for (kk = 0; kk < csvData->columnCnt; kk++)
+            {
+                switch (csvData->columns[kk].type)
+                {
+                case CSV_STRING:
+                    assert_str_read(csvData->columns[kk].fields[jj].strVal);
+                    break;
+                case CSV_EVENT:
+                    assert_event_read(csvData->columns[kk].fields[jj].eventVal);
+                    break;
+                case CSV_BOOL:
+                    assert_bool_read(csvData->columns[kk].fields[jj].boolVal);
+                    break;
+                default:
+                    cr_fatal("Invalid CSV column type %d in generated data.",
+                             csvData->columns[jj].type);
+                    break;
+                }
+            }
+        }
+
+        assert_file_read();
+
+        freeData(csvData);
+        csvData = NULL;
+
+        if (!((ii+1) % 8))
+        {
+            cr_log_info("Number of generated CSV files during harness test: "
+                        "%u\n", ii + 1);
+        }
+    }
+
+    if (!DeleteFileW(L"csv\\harness.csv"))
+        cr_fatal("Failed to delete the harness test file.");
+}
+
 void fini(void)
 {
 #ifdef DEBUG
@@ -588,4 +652,15 @@ void fini(void)
         abort();
     }
 #endif
+}
+
+void finiHarness(void)
+{
+    if (csvData)
+    {
+        freeData(csvData);
+        csvData = NULL;
+    }
+
+    fini();
 }

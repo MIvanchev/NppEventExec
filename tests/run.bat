@@ -20,10 +20,10 @@ set CRITERION_INC_PATH=..\..\..\..\Libs\C\Criterion\include
 set CRITERION_LIB_PATH=..\..\..\..\Libs\C\Criterion\build
 set EXE=tests.exe
 
-gcc -g -DDEBUG -I%CRITERION_INC_PATH% -I.. -L%CRITERION_LIB_PATH% -o %EXE% csv.c test.c ..\csv.c ..\mem.c ..\util.c ..\event_map.c ..\utf8.c -lcriterion
+gcc -g -DDEBUG -I%CRITERION_INC_PATH% -I.. -L%CRITERION_LIB_PATH% -o %EXE% csv.c csv_gen.c test.c ..\csv.c ..\mem.c ..\util.c ..\event_map.c ..\utf8.c -lcriterion
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-%EXE% --ascii %1 %2 %3 %4 %5 %6 %7 %8 %9
+%EXE% --ascii --verbose %1 %2 %3 %4 %5 %6 %7 %8 %9
 
 set RESULT=%errorlevel%
 
