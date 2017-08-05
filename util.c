@@ -226,7 +226,7 @@ void setWndPosDeferred(const SetWindowPosArgs *ops)
         goto fail;
     }
 
-    if (!(hdwp = BeginDeferWindowPos(count)))
+    if (!(hdwp = BeginDeferWindowPos((int) count)))
     {
         /* TODO error */
         goto fail;

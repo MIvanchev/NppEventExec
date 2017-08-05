@@ -70,7 +70,7 @@ typedef struct
     HIMAGELIST ilButtonsDisabled;
 } Dialog;
 
-static INT_PTR dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
+static INT_PTR CALLBACK dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
 static void onInitDlg(HWND dlg);
 static void onSize(LONG clientWidth, LONG clientHeight);
 static void onGetDispInfo(NMLVDISPINFO *dispInfo);
@@ -130,7 +130,7 @@ int openRulesDlg(Rule **activeRules)
     return 0;
 }
 
-INT_PTR dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {

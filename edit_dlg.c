@@ -97,7 +97,7 @@ typedef struct
     bool initialized;
 } Dialog;
 
-static INT_PTR dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp);
+static INT_PTR CALLBACK dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp);
 static void onInitDlg(HWND handle);
 static void onDestroy(void);
 static void onSize(WORD clientWidth);
@@ -155,7 +155,7 @@ int openEditDlg(HWND parent, Rule *rule)
     return res == IDC_BT_APPLY;
 }
 
-INT_PTR dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
