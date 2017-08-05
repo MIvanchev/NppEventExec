@@ -63,7 +63,7 @@ typedef enum
     COL_BACKGROUND
 } Column;
 
-static BOOL CALLBACK dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
+static INT_PTR CALLBACK dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
 static void onInitDlg(HWND dlg);
 static void onSize(LONG clientWidth, LONG clientHeight);
 static void onGetDispInfo(NMLVDISPINFO *dispInfo);
@@ -150,7 +150,7 @@ void processQueueEvent(QueueEvent event)
     }
 }
 
-BOOL CALLBACK dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
@@ -401,6 +401,8 @@ void onAbort(void)
     abortedCnt = 0;
     posInList = -1;
     focusedItem = ListView_GetNextItem(dlg->lvQueue, -1, LVIS_FOCUSED);
+
+    firstSelected = false; /* Shut up compiler... */
 
     do
     {

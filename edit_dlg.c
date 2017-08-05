@@ -97,7 +97,7 @@ typedef struct
     bool initialized;
 } Dialog;
 
-static BOOL dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp);
+static INT_PTR dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp);
 static void onInitDlg(HWND handle);
 static void onDestroy(void);
 static void onSize(WORD clientWidth);
@@ -140,8 +140,8 @@ int openEditDlg(HWND parent, Rule *rule)
 
     dlg->rule = rule;
 
-    res = DialogBox(getPluginInstance(), MAKEINTRESOURCE(IDD_EDIT), parent,
-                    (DLGPROC) dlgProc);
+    res = DialogBox(getPluginInstance(), MAKEINTRESOURCE(IDD_EDIT),
+                    parent, dlgProc);
 
     freeMem(dlg);
     dlg = NULL;
@@ -155,7 +155,7 @@ int openEditDlg(HWND parent, Rule *rule)
     return res == IDC_BT_APPLY;
 }
 
-BOOL dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
@@ -749,7 +749,7 @@ int validateChanges(void)
     if (dlg->invalidCnt)
         layoutDlg();
 
-    return dlg->invalidCnt;
+    return dlg->invalidCnt > 0;
 }
 
 bool extractCtrlContents(InputCtrl *ctrl)

@@ -195,7 +195,7 @@ void csvClose(void)
 
 int csvHasData(void)
 {
-    return byteBufLen;
+    return byteBufLen > 0;
 }
 
 wchar_t* csvReadString(size_t *unitCnt, size_t *charCnt)
@@ -787,7 +787,7 @@ int readBytes(void)
     assert(byteBufSize < (DWORD) -1);
     assert(!byteBufLen);
 
-    if (!ReadFile(file, byteBuf, byteBufSize, &byteCnt, NULL))
+    if (!ReadFile(file, byteBuf, (DWORD) byteBufSize, &byteCnt, NULL))
     {
         /* TODO error */
         return 1;
@@ -954,7 +954,8 @@ int writeBytes(void)
     assert(byteBufSize < (DWORD) -1);
     assert(byteBufLen < byteBufSize);
 
-    if (!WriteFile(file, byteBuf, byteBufSize - byteBufLen, &written, NULL))
+    if (!WriteFile(file, byteBuf, (DWORD) (byteBufSize - byteBufLen), &written,
+                   NULL))
     {
         /* TODO error */
         return 1;

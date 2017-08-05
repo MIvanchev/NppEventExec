@@ -70,7 +70,7 @@ typedef struct
     HIMAGELIST ilButtonsDisabled;
 } Dialog;
 
-static BOOL dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
+static INT_PTR dlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
 static void onInitDlg(HWND dlg);
 static void onSize(LONG clientWidth, LONG clientHeight);
 static void onGetDispInfo(NMLVDISPINFO *dispInfo);
@@ -116,7 +116,7 @@ int openRulesDlg(Rule **activeRules)
     dlg->initialized = false;
 
     res = DialogBox(getPluginInstance(), MAKEINTRESOURCE(IDD_RULES),
-                    getNppWnd(), (DLGPROC) dlgProc);
+                    getNppWnd(), dlgProc);
 
     freeMem(dlg);
     dlg = NULL;
@@ -130,7 +130,7 @@ int openRulesDlg(Rule **activeRules)
     return 0;
 }
 
-BOOL dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
@@ -855,7 +855,7 @@ void addToolbarBtn(int bmpIndex, int cmdId, int strId)
     int strIndex;
 
     strIndex = SendMessage(dlg->toolbar, TB_ADDSTRINGW,
-                           (WPARAM) getPluginInstance(), strId);
+                           (WPARAM) getPluginInstance(), (LPARAM) strId);
     if (strIndex == -1)
     {
         /* TODO warning */

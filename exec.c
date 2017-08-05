@@ -48,7 +48,10 @@ static bool initArgs(Exec *exec,
                      uptr_t bufIdDigitCnt,
                      uptr_t bufId);
 static uptr_t countBufIdDigits(uptr_t bufId);
-static void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime);
+static void CALLBACK timerProc(HWND wnd,
+                               UINT msg,
+                               UINT_PTR timerId,
+                               DWORD sysTime);
 static Exec* getExecAt(int pos);
 
 static struct
@@ -57,7 +60,7 @@ static struct
     Exec *last;
     unsigned int size;
     unsigned int foregroundCnt;
-    UINT timerId;
+    UINT_PTR timerId;
 } queue;
 
 int execRule(uptr_t bufId, const wchar_t *path, const Rule *rule)
@@ -420,7 +423,7 @@ uptr_t countBufIdDigits(uptr_t bufId)
     return cnt;
 }
 
-void CALLBACK timerProc(HWND wnd, UINT msg, UINT timerId, DWORD sysTime)
+void CALLBACK timerProc(HWND wnd, UINT msg, UINT_PTR timerId, DWORD sysTime)
 {
     unsigned int prevCnt;
     ExecState prevState;

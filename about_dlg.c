@@ -217,7 +217,7 @@ void onDrawItem(DRAWITEMSTRUCT *dis)
     }
     else
     {
-        DrawTextW(dc, content, wcslen(content), &rcTxt,
+        DrawTextW(dc, content, (int) wcslen(content), &rcTxt,
                   DT_CENTER | DT_SINGLELINE);
     }
 
@@ -292,6 +292,9 @@ LONG getContentWidth(HWND ctrl)
     HFONT ctrlFont;
     HFONT prevFont;
 
+    assert(BUFLEN(content) > 0);
+    assert(BUFLEN(content) <= INT_MAX);
+
     rc.left = 0;
     rc.right = 0;
 
@@ -301,7 +304,7 @@ LONG getContentWidth(HWND ctrl)
     GetWindowText(ctrl, content, BUFLEN(content));
     DrawTextW(dc,
               content,
-              wcslen(content),
+              (int) wcslen(content),
               &rc,
               DT_SINGLELINE | DT_CALCRECT);
     SelectObject(dc, prevFont);
@@ -375,7 +378,7 @@ void openUrl(const wchar_t *url)
     ** an HINSTANCE.
     */
 
-    if ((int) res <= 32)
+    if (res <= (HINSTANCE) 32)
     {
         errorMsgBox(aboutDlg, L"Failed to open the URL \"%s\".", url);
         return;
