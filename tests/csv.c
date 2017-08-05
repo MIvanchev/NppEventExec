@@ -30,10 +30,10 @@ declare_assert(file_open, int fieldCnt, int header);
 declare_assert(file_read);
 declare_assert(any_str_read);
 declare_assert(str_read, const wchar_t *val);
-declare_assert(any_str_with_char_and_unit_cnt_read, size_t charCnt,
-               size_t unitCnt);
-declare_assert(str_with_char_and_unit_cnt_read, const wchar_t *val,
-               size_t charCnt, size_t unitCnt);
+declare_assert(any_str_with_unit_and_char_cnt_read, size_t unitCnt,
+               size_t charCnt);
+declare_assert(str_with_unit_and_char_cnt_read, const wchar_t *val,
+               size_t unitCnt, size_t charCnt);
 declare_assert(bool_read, bool val);
 declare_assert(event_read, unsigned int val);
 
@@ -42,10 +42,10 @@ declare_assert(event_read, unsigned int val);
 #define assert_file_read()    call_assert_proc(file_read)
 #define assert_any_str_read() call_assert_proc(any_str_read)
 #define assert_str_read(val)  call_assert_proc(str_read, val)
-#define assert_any_str_with_char_and_unit_cnt_read(charCnt, unitCnt) \
-    call_assert_proc(any_str_with_char_and_unit_cnt_read, charCnt, unitCnt)
-#define assert_str_with_char_and_unit_cnt_read(charCnt, unitCnt) \
-    call_assert_proc(str_with_char_and_unit_cnt_read, charCnt, unitCnt)
+#define assert_any_str_with_unit_and_char_cnt_read(unitCnt, charCnt) \
+    call_assert_proc(any_str_with_unit_and_char_cnt_read, unitCnt, charCnt)
+#define assert_str_with_unit_and_char_cnt_read(val, unitCnt, charCnt) \
+    call_assert_proc(str_with_unit_and_char_cnt_read, val, unitCnt, charCnt)
 #define assert_bool_read(val)  call_assert_proc(bool_read, val)
 #define assert_event_read(val) call_assert_proc(event_read, val)
 
@@ -83,7 +83,7 @@ declare_assert(event_read, unsigned int val);
 static void readStr(const char *filename,
                     unsigned int lineNum,
                     const wchar_t *val,
-                    bool withCharAndUnitCnt,
+                    bool withUnitAndCharCnt,
                     size_t charCnt,
                     size_t unitCnt);
 static void fini(void);
@@ -392,18 +392,18 @@ Test(csv, mixed) {
 
 Test(csv, char_and_unit_cnt) {
     assert_file_open(2, 1);
-    assert_any_str_with_char_and_unit_cnt_read(3, 3);
-    assert_any_str_with_char_and_unit_cnt_read(3, 3);
-    assert_any_str_with_char_and_unit_cnt_read(12, 12);
-    assert_any_str_with_char_and_unit_cnt_read(16, 16);
-    assert_any_str_with_char_and_unit_cnt_read(2, 2);
-    assert_any_str_with_char_and_unit_cnt_read(5, 5);
-    assert_any_str_with_char_and_unit_cnt_read(5, 5);
-    assert_any_str_with_char_and_unit_cnt_read(6, 6);
-    assert_any_str_with_char_and_unit_cnt_read(8, 8);
-    assert_any_str_with_char_and_unit_cnt_read(19, 19);
-    assert_any_str_with_char_and_unit_cnt_read(30, 30);
-    assert_any_str_with_char_and_unit_cnt_read(19, 19);
+    assert_any_str_with_unit_and_char_cnt_read(3, 3);
+    assert_any_str_with_unit_and_char_cnt_read(3, 3);
+    assert_any_str_with_unit_and_char_cnt_read(12, 12);
+    assert_any_str_with_unit_and_char_cnt_read(16, 16);
+    assert_any_str_with_unit_and_char_cnt_read(2, 2);
+    assert_any_str_with_unit_and_char_cnt_read(5, 5);
+    assert_any_str_with_unit_and_char_cnt_read(5, 5);
+    assert_any_str_with_unit_and_char_cnt_read(6, 6);
+    assert_any_str_with_unit_and_char_cnt_read(8, 8);
+    assert_any_str_with_unit_and_char_cnt_read(19, 19);
+    assert_any_str_with_unit_and_char_cnt_read(30, 30);
+    assert_any_str_with_unit_and_char_cnt_read(19, 19);
     assert_file_read();
 }
 
@@ -518,29 +518,29 @@ define_assert(str_read, const wchar_t *val) {
             0);
 }
 
-define_assert(any_str_with_char_and_unit_cnt_read,
-              size_t charCnt,
-              size_t unitCnt) {
+define_assert(any_str_with_unit_and_char_cnt_read,
+              size_t unitCnt,
+              size_t charCnt) {
 
     readStr(ASSERT_FILENAME_ID,
             ASSERT_LINE_NUM_ID,
             ANY_STR,
             true,
-            charCnt,
-            unitCnt);
+            unitCnt,
+            charCnt);
 }
 
-define_assert(str_with_char_and_unit_cnt_read,
+define_assert(str_with_unit_and_char_cnt_read,
               const wchar_t *val,
-              size_t charCnt,
-              size_t unitCnt) {
+              size_t unitCnt,
+              size_t charCnt) {
 
     readStr(ASSERT_FILENAME_ID,
             ASSERT_LINE_NUM_ID,
             val,
             true,
-            charCnt,
-            unitCnt);
+            unitCnt,
+            charCnt);
 }
 
 define_assert(bool_read, bool val) {
@@ -580,6 +580,7 @@ define_assert(event_read, unsigned int val) {
 }
 
 Test(csv, harness, .fini = finiHarness) {
+    CsvField *field;
     unsigned int ii;
     unsigned int jj;
     unsigned int kk;
@@ -600,16 +601,20 @@ Test(csv, harness, .fini = finiHarness) {
         {
             for (kk = 0; kk < csvData->columnCnt; kk++)
             {
+                field = &csvData->columns[kk].fields[jj];
+
                 switch (csvData->columns[kk].type)
                 {
                 case CSV_STRING:
-                    assert_str_read(csvData->columns[kk].fields[jj].strVal);
+                    assert_str_with_unit_and_char_cnt_read(field->strVal,
+                                                           field->unitCnt,
+                                                           field->charCnt);
                     break;
                 case CSV_EVENT:
-                    assert_event_read(csvData->columns[kk].fields[jj].eventVal);
+                    assert_event_read(field->eventVal);
                     break;
                 case CSV_BOOL:
-                    assert_bool_read(csvData->columns[kk].fields[jj].boolVal);
+                    assert_bool_read(field->boolVal);
                     break;
                 default:
                     cr_fatal("Invalid CSV column type %d in generated data.",
@@ -638,9 +643,9 @@ Test(csv, harness, .fini = finiHarness) {
 void readStr(const char *filename,
              unsigned int lineNum,
              const wchar_t *val,
-             bool withCharAndUnitCnt,
-             size_t charCnt,
-             size_t unitCnt)
+             bool withUnitAndCharCnt,
+             size_t unitCnt,
+             size_t charCnt)
 {
     wchar_t *str;
     size_t strCharCnt;
@@ -649,7 +654,7 @@ void readStr(const char *filename,
     assert(charCnt <= ULONG_MAX);
     assert(unitCnt <= ULONG_MAX);
 
-    if (!(str = csvReadString(&strCharCnt, &strUnitCnt)))
+    if (!(str = csvReadString(&strUnitCnt, &strCharCnt)))
     {
         csvClose();
         cr_assert_fail_user(filename, lineNum, criterion_abort_test,
@@ -667,28 +672,8 @@ void readStr(const char *filename,
 
     freeStr(str);
 
-    if (withCharAndUnitCnt)
+    if (withUnitAndCharCnt)
     {
-        if (strCharCnt > ULONG_MAX)
-        {
-            csvClose();
-            cr_assert_fail_user(filename,
-                                lineNum,
-                                criterion_abort_test,
-                                "The string consists of unreasonably many "
-                                "characters.",
-                                (unsigned long) strCharCnt,
-                                (unsigned long) charCnt);
-        }
-        if (charCnt != strCharCnt)
-        {
-            csvClose();
-            cr_assert_fail_user(filename, lineNum, criterion_abort_test,
-                                "Read a string consisting of %lu characters, "
-                                "but a length of %lu characters was expected.",
-                                (unsigned long) strCharCnt,
-                                (unsigned long) charCnt);
-        }
         if (strUnitCnt > ULONG_MAX)
         {
             csvClose();
@@ -709,6 +694,26 @@ void readStr(const char *filename,
                                 "was expected.",
                                 (unsigned long) strUnitCnt,
                                 (unsigned long) unitCnt);
+        }
+        if (strCharCnt > ULONG_MAX)
+        {
+            csvClose();
+            cr_assert_fail_user(filename,
+                                lineNum,
+                                criterion_abort_test,
+                                "The string consists of unreasonably many "
+                                "characters.",
+                                (unsigned long) strCharCnt,
+                                (unsigned long) charCnt);
+        }
+        if (charCnt != strCharCnt)
+        {
+            csvClose();
+            cr_assert_fail_user(filename, lineNum, criterion_abort_test,
+                                "Read a string consisting of %lu characters, "
+                                "but a length of %lu characters was expected.",
+                                (unsigned long) strCharCnt,
+                                (unsigned long) charCnt);
         }
     }
 }

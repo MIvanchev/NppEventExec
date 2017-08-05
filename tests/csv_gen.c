@@ -77,7 +77,7 @@ static const unsigned long const (*CHAR_RANGES[2][2])[2] = {
 };
 
 static CsvData* genData(void);
-static wchar_t* genStr(int quoted);
+static wchar_t* genStr(int quoted, size_t *unitCnt, size_t *charCnt);
 static void genChar(wchar_t *buf, size_t bufLen, int quoted);
 static unsigned long genUlong(void);
 static int writeHeader(size_t columnCnt);
@@ -298,7 +298,9 @@ CsvData* genData(void)
             switch (cols[ii].type)
             {
             case CSV_STRING:
-                if (!(field->strVal = genStr(field->quoted)))
+                if (!(field->strVal = genStr(field->quoted,
+                                             &field->unitCnt,
+                                             &field->charCnt)))
                 {
                     logError("Failed to generate a string value for column %u "
                              "of record %u.",
@@ -349,16 +351,21 @@ fail_alloc:
     return NULL;
 }
 
-wchar_t* genStr(int quoted)
+wchar_t* genStr(int quoted, size_t *unitCnt, size_t *charCnt)
 {
     wchar_t *str;
     wchar_t *ptr;
     unsigned int len;
+    size_t chars;
+    size_t units;
 
     assert(MAX_STR_LEN < UINT_MAX);
     assert(MAX_STR_LEN < SIZE_MAX);
 
     len = rand() % (MAX_STR_LEN + 1);
+
+    chars = 0;
+    units = len;
 
     if (!(str = allocStr(len + 1)))
     {
@@ -382,15 +389,21 @@ wchar_t* genStr(int quoted)
             *(ptr + 1) = L'\n';
             ptr += 2;
             len -= 2;
+
+            chars++;
         }
         else
         {
             ptr++;
             len--;
         }
+
+        chars++;
     }
 
     *ptr = L'\0';
+    *charCnt = chars;
+    *unitCnt = units;
 
     return str;
 }
@@ -450,13 +463,15 @@ int writeHeader(size_t columnCnt)
 {
     bool quoted;
     wchar_t *str;
+    size_t charCnt;
+    size_t unitCnt;
     size_t ii;
 
     for (ii = 0; ii < columnCnt; ii++)
     {
         quoted = rand() % 2;
 
-        if (!(str = genStr(quoted)))
+        if (!(str = genStr(quoted, &unitCnt, &charCnt)))
         {
             logError("Failed to generate a string for the header of column "
                      "#%u.", ii);

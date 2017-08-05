@@ -30,7 +30,12 @@ typedef struct
 {
     union
     {
-        wchar_t *strVal;
+        struct
+        {
+            wchar_t *strVal;
+            size_t charCnt;
+            size_t unitCnt;
+        };
         unsigned int eventVal;
         bool boolVal;
     };
