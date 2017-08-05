@@ -44,8 +44,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
              arg17, arg18, arg19, arg20, arg21, arg22, arg23, arg24, \
              arg25, arg26, arg27, arg28, arg29, arg30, arg31, arg32, ...) arg32
 
-#define ASSERT_FILENAME_ID custAssertFile
-#define ASSERT_LINENUM_ID  custAssertLineNum
+#define ASSERT_FILENAME_ID custAssertFilename
+#define ASSERT_LINE_NUM_ID custAssertLineNum
 
 #define declare_assert(...) static define_assert(__VA_ARGS__)
 
@@ -54,7 +54,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #define define_assert_(arg, ...) define_assert__(arg, __VA_ARGS__)
 #define define_assert__(arg, ...)                            \
     void assert_proc_ ## arg(const char *ASSERT_FILENAME_ID, \
-                             int ASSERT_LINENUM_ID TAIL(__VA_ARGS__))
+                             int ASSERT_LINE_NUM_ID TAIL(__VA_ARGS__))
 
 #define call_assert_proc(...) \
     call_assert_proc_(HEAD(__VA_ARGS__), __VA_ARGS__)
@@ -64,7 +64,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #define cr_assert_failure(...)                \
     cr_assert_fail_user(ASSERT_FILENAME_ID,   \
-                        ASSERT_LINENUM_ID,    \
+                        ASSERT_LINE_NUM_ID,   \
                         criterion_abort_test, \
                         __VA_ARGS__)
 
