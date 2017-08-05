@@ -24,7 +24,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "Notepad_plus_msgs.h"
 #include <time.h>
 
+/** TODO */
 #define ANY_STR NULL
+
+/** TODO */
+#define HARNESS_ITERATIONS 256
 
 declare_assert(file_open, int fieldCnt, int header);
 declare_assert(file_read);
@@ -76,9 +80,6 @@ declare_assert(event_read, unsigned int val);
     }                                                                        \
                                                                              \
     csvClose()
-
-/** TODO */
-#define HARNESS_ITERATIONS 256
 
 static void readStr(const char *filename,
                     unsigned int lineNum,
@@ -470,6 +471,67 @@ Test(csv, invalid_utf8_seq)
     csvClose();
 }
 
+Test(csv, harness, .fini = finiHarness) {
+    CsvField *field;
+    unsigned int ii;
+    unsigned int jj;
+    unsigned int kk;
+
+    assert(!csvData);
+    assert(HARNESS_ITERATIONS < UINT_MAX);
+
+    srand(time(NULL) % UINT_MAX);
+
+    for (ii = 0; ii < HARNESS_ITERATIONS; ii++)
+    {
+        if (!(csvData = genCsv()))
+            cr_fatal("Failed to generate the CSV data.");
+
+        assert_file_open(csvData->columnCnt, csvData->hdr);
+
+        for (jj = 0; jj < csvData->recordCnt; jj++)
+        {
+            for (kk = 0; kk < csvData->columnCnt; kk++)
+            {
+                field = &csvData->columns[kk].fields[jj];
+
+                switch (csvData->columns[kk].type)
+                {
+                case CSV_STRING:
+                    assert_str_with_unit_and_char_cnt_read(field->strVal,
+                                                           field->unitCnt,
+                                                           field->charCnt);
+                    break;
+                case CSV_EVENT:
+                    assert_event_read(field->eventVal);
+                    break;
+                case CSV_BOOL:
+                    assert_bool_read(field->boolVal);
+                    break;
+                default:
+                    cr_fatal("Invalid CSV column type %d in generated data.",
+                             csvData->columns[jj].type);
+                    break;
+                }
+            }
+        }
+
+        assert_file_read();
+
+        freeData(csvData);
+        csvData = NULL;
+
+        if (!((ii+1) % 8))
+        {
+            cr_log_info("Number of generated CSV files during harness test: "
+                        "%u\n", ii + 1);
+        }
+    }
+
+    if (!DeleteFileW(L"csv\\harness.csv"))
+        cr_fatal("Failed to delete the harness test file.");
+}
+
 define_assert(file_open, int fieldCnt, int header) {
     char *name;
     wchar_t path[2048];
@@ -577,67 +639,6 @@ define_assert(event_read, unsigned int val) {
             getEventMapEntry(event)->name,
             getEventMapEntry(val)->name);
     }
-}
-
-Test(csv, harness, .fini = finiHarness) {
-    CsvField *field;
-    unsigned int ii;
-    unsigned int jj;
-    unsigned int kk;
-
-    assert(!csvData);
-    assert(HARNESS_ITERATIONS < UINT_MAX);
-
-    srand(time(NULL) % UINT_MAX);
-
-    for (ii = 0; ii < 256; ii++)
-    {
-        if (!(csvData = genCsv()))
-            cr_fatal("Failed to generate the CSV data.");
-
-        assert_file_open(csvData->columnCnt, csvData->hdr);
-
-        for (jj = 0; jj < csvData->recordCnt; jj++)
-        {
-            for (kk = 0; kk < csvData->columnCnt; kk++)
-            {
-                field = &csvData->columns[kk].fields[jj];
-
-                switch (csvData->columns[kk].type)
-                {
-                case CSV_STRING:
-                    assert_str_with_unit_and_char_cnt_read(field->strVal,
-                                                           field->unitCnt,
-                                                           field->charCnt);
-                    break;
-                case CSV_EVENT:
-                    assert_event_read(field->eventVal);
-                    break;
-                case CSV_BOOL:
-                    assert_bool_read(field->boolVal);
-                    break;
-                default:
-                    cr_fatal("Invalid CSV column type %d in generated data.",
-                             csvData->columns[jj].type);
-                    break;
-                }
-            }
-        }
-
-        assert_file_read();
-
-        freeData(csvData);
-        csvData = NULL;
-
-        if (!((ii+1) % 8))
-        {
-            cr_log_info("Number of generated CSV files during harness test: "
-                        "%u\n", ii + 1);
-        }
-    }
-
-    if (!DeleteFileW(L"csv\\harness.csv"))
-        cr_fatal("Failed to delete the harness test file.");
 }
 
 void readStr(const char *filename,
