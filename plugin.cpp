@@ -108,13 +108,16 @@ bool validateModuleName(wchar_t **dir)
 {
     wchar_t *path;
     wchar_t *tmp;
-    size_t len;
+    DWORD len;
+    DWORD maxLen;
     wchar_t *fname;
 
     assert(MAX_PATH < SIZE_MAX);
+    assert(MAX_PATH < (DWORD) -1);
     assert(dir);
 
     len = MAX_PATH + 1;
+    maxLen = MIN(SIZE_MAX, (DWORD) -1);
 
     if (!(path = allocStr(len)))
     {
@@ -126,13 +129,13 @@ bool validateModuleName(wchar_t **dir)
     {
         if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
         {
-            if (len == SIZE_MAX)
+            if (len == maxLen)
             {
                 /* TODO error */
                 goto fail_too_long;
             }
-            else if (len > SIZE_MAX - MAX_PATH)
-                len = SIZE_MAX;
+            else if (len > maxLen - MAX_PATH)
+                len = maxLen;
             else
                 len += MAX_PATH;
 
@@ -438,7 +441,7 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
             for (rule = rules; rule; rule = rule->next)
                 execRule(0, L"C:\\foo.txt", rule);
 
-            openQueueDlg(getNppWnd(), QDLR_PLUGIN_MENU);
+            // openQueueDlg(getNppWnd(), QDLR_PLUGIN_MENU);
             // openAboutDlg();
             // openRulesDlg(&rules);
         }
@@ -577,7 +580,6 @@ FuncItem* getFuncsArray(int *nbF)
 void beNotified(SCNotification *notification)
 {
     Sci_NotifyHeader *hdr;
-    int res;
 
     hdr = &notification->nmhdr;
 
@@ -597,7 +599,7 @@ void beNotified(SCNotification *notification)
     if (hdr->code == NPPN_SHUTDOWN)
     {
         if (!isQueueEmpty()
-            && (res = openQueueDlg(getNppWnd(), QDLR_NPP_CLOSING)) == -1)
+            && openQueueDlg(getNppWnd(), QDLR_NPP_CLOSING) == -1)
         {
             /* TODO error */
             emptyQueue();
