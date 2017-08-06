@@ -115,8 +115,8 @@ int openRulesDlg(Rule **activeRules)
     dlg->rules = NULL;
     dlg->initialized = false;
 
-    res = DialogBox(getPluginInstance(), MAKEINTRESOURCE(IDD_RULES),
-                    getNppWnd(), dlgProc);
+    res = DialogBoxW(getPluginInstance(), MAKEINTRESOURCE(IDD_RULES),
+                     getNppWnd(), dlgProc);
 
     freeMem(dlg);
     dlg = NULL;
@@ -852,10 +852,10 @@ void addToolbarGap(void)
 void addToolbarBtn(int bmpIndex, int cmdId, int strId)
 {
     TBBUTTON btn;
-    int strIndex;
+    LRESULT strIndex;
 
     strIndex = SendMessage(dlg->toolbar, TB_ADDSTRINGW,
-                           (WPARAM) getPluginInstance(), (LPARAM) strId);
+                           (WPARAM) getPluginInstance(), strId);
     if (strIndex == -1)
     {
         /* TODO warning */
@@ -867,7 +867,7 @@ void addToolbarBtn(int bmpIndex, int cmdId, int strId)
     btn.fsState = TBSTATE_WRAP;
     btn.fsStyle = TBSTYLE_AUTOSIZE;
     /* The wonders of the Win32 API, pointers and numbers intermixed freely... */
-    btn.iString = strIndex != -1 ? strIndex : (int) NULL;
+    btn.iString = strIndex != -1 ? strIndex : (INT_PTR) NULL;
     SendMessage(dlg->toolbar, TB_ADDBUTTONS, 1, (LPARAM) &btn);
 }
 
@@ -927,7 +927,7 @@ BOOL CALLBACK layoutDlgProc(HWND wnd, LPARAM lp)
     case IDC_BT_SAVE:
     case IDC_BT_RESET:
         MapWindowPoints(NULL, dlg->handle, (POINT*) &rc.left, 1);
-        setWndPos(wnd, rc.left + lp, rc.top + dlg->padding);
+        setWndPos(wnd, rc.left + (int) lp, rc.top + dlg->padding);
         break;
     case IDCANCEL:
         MapWindowPoints(NULL, dlg->handle, (POINT*) &rc, 2);

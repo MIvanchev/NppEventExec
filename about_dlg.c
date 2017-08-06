@@ -58,8 +58,8 @@ void openAboutDlg(void)
 {
     INT_PTR ret;
 
-    ret = DialogBox(getPluginInstance(), MAKEINTRESOURCE(IDD_ABOUT),
-                    getNppWnd(), aboutDlgProc);
+    ret = DialogBoxW(getPluginInstance(), MAKEINTRESOURCE(IDD_ABOUT),
+                     getNppWnd(), aboutDlgProc);
     if (ret == -1)
     {
         /* TODO error */

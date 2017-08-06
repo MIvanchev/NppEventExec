@@ -140,8 +140,8 @@ int openEditDlg(HWND parent, Rule *rule)
 
     dlg->rule = rule;
 
-    res = DialogBox(getPluginInstance(), MAKEINTRESOURCE(IDD_EDIT),
-                    parent, dlgProc);
+    res = DialogBoxW(getPluginInstance(), MAKEINTRESOURCE(IDD_EDIT),
+                     parent, dlgProc);
 
     freeMem(dlg);
     dlg = NULL;

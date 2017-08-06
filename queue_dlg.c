@@ -43,7 +43,6 @@ typedef struct
     int clientHeight;
     bool closing;
     bool canceled;
-    int maxPosDigits;
     /*const wchar_t *title;*/
     /*const wchar_t *msg;*/
     wchar_t *posEntries;
@@ -77,8 +76,8 @@ static void onQueueStatusUpdate(void);
 static void layoutDlg(void);
 static void enlargePosEntries(unsigned int count);
 static void compactPosEntries(void);
-static int countPosDigits(int pos);
-static void formatPos(wchar_t *buf, int pos);
+static unsigned int countPosDigits(unsigned int pos);
+static void formatPos(wchar_t *buf, unsigned int pos);
 static bool tryCloseDlg(void);
 static void deferClosing(void);
 static void appendToTitle(const wchar_t *suffix);
@@ -102,8 +101,8 @@ INT_PTR openQueueDlg(HWND parent, QueueDlgLaunchReason reason)
     dlg->posEntries = NULL;
     dlg->posEntryCnt = 0;
 
-    res = DialogBox(getPluginInstance(), MAKEINTRESOURCE(IDD_QUEUE), parent,
-                    dlgProc);
+    res = DialogBoxW(getPluginInstance(), MAKEINTRESOURCE(IDD_QUEUE), parent,
+                     dlgProc);
 
     /* Cache the value, because the memory is freed immediately. */
 
@@ -217,7 +216,7 @@ INT_PTR CALLBACK dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
 
 void onInitDlg(HWND handle)
 {
-    int maxDigits;
+    unsigned int maxDigits;
 
     dlg->handle = handle;
     dlg->lvQueue = GetDlgItem(handle, IDC_LV_QUEUE);
@@ -632,7 +631,7 @@ void enlargePosEntries(unsigned int count)
     if (diff > dlg->maxPosEntries
         || count > dlg->maxPosEntries - diff)
     {
-        count = dlg->maxPosEntries;
+        count = (unsigned int) dlg->maxPosEntries;
     }
     else
         count += diff;
@@ -651,7 +650,7 @@ void enlargePosEntries(unsigned int count)
     }
 
     for (ii = dlg->posEntryCnt; ii < count; ii++)
-        formatPos(entries + ii * dlg->posEntryLen, ii);
+        formatPos(entries + ii * dlg->posEntryLen, (unsigned int) ii);
 
     dlg->posEntries = entries;
     dlg->posEntryCnt = count;
@@ -707,9 +706,9 @@ void compactPosEntries(void)
     dlg->posEntryCnt = count;
 }
 
-int countPosDigits(int pos)
+unsigned int countPosDigits(unsigned int pos)
 {
-    int cnt;
+    unsigned int cnt;
 
     cnt = 0;
 
@@ -722,9 +721,9 @@ int countPosDigits(int pos)
     return cnt;
 }
 
-void formatPos(wchar_t *buf, int pos)
+void formatPos(wchar_t *buf, unsigned int pos)
 {
-    int digitCnt;
+    unsigned int digitCnt;
 
     /* Avoid the signed overflow. */
 
