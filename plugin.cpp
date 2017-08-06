@@ -186,12 +186,15 @@ wchar_t* queryConfigDir(void)
 {
     wchar_t *dir;
     wchar_t *tmp;
-    size_t len;
+    WPARAM len;
+    WPARAM maxLen;
 
     assert(MAX_PATH < SIZE_MAX);
+    assert(MAX_PATH < (WPARAM) -1);
     assert(MAX_PATH >= 4);
 
     len = MAX_PATH + 1;
+    maxLen = (WPARAM) -1;
 
     if (!(dir = allocStr(len)))
     {
@@ -201,8 +204,7 @@ wchar_t* queryConfigDir(void)
 
     StringCchCopyW(dir, len, L"\\\\?\\");
 
-    while (!sendNppMsg(NPPM_GETPLUGINSCONFIGDIR,
-                       static_cast<WPARAM>(len - 5),
+    while (!sendNppMsg(NPPM_GETPLUGINSCONFIGDIR, len - 5,
                        reinterpret_cast<LPARAM>(&dir[4])))
     {
 
@@ -210,13 +212,13 @@ wchar_t* queryConfigDir(void)
         ** be something else. No way to know.
         */
 
-        if (len == SIZE_MAX)
+        if (len == maxLen)
         {
             /* TODO error */
             goto fail_too_long;
         }
-        else if (len > SIZE_MAX - MAX_PATH)
-            len = SIZE_MAX;
+        else if (len > maxLen - MAX_PATH)
+            len = maxLen;
         else
             len += MAX_PATH;
 
