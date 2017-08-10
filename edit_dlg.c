@@ -139,6 +139,7 @@ int openEditDlg(HWND parent, Rule *rule)
     }
 
     dlg->rule = rule;
+    dlg->initialized = false;
 
     res = DialogBoxW(getPluginInstance(), MAKEINTRESOURCE(IDD_EDIT),
                      parent, dlgProc);
@@ -234,7 +235,6 @@ void onInitDlg(HWND handle)
     unsigned int ii;
 
     dlg->handle = handle;
-    dlg->initialized = false;
 
     if (!(dlg->errBrush = CreateSolidBrush(COLOR_ERROR)))
     {
@@ -258,12 +258,8 @@ void onInitDlg(HWND handle)
              &rule->name, validateName);
     initCtrl(&dlg->ctrlRegex, IDC_ST_REGEX, IDC_ED_REGEX, IDC_ST_REGEX_ERROR,
              &rule->regex, validateRegex);
-    initCtrl(&dlg->ctrlCmd,
-             IDC_ST_COMMAND,
-             IDC_ED_COMMAND,
-             IDC_ST_COMMAND_ERROR,
-             &rule->cmd,
-             validateCmd);
+    initCtrl(&dlg->ctrlCmd, IDC_ST_COMMAND, IDC_ED_COMMAND,
+             IDC_ST_COMMAND_ERROR, &rule->cmd, validateCmd);
 
     dlg->lblEvent = GetDlgItem(handle, IDC_ST_EVENT);
     dlg->cbEvent = GetDlgItem(handle, IDC_CB_EVENT);
@@ -476,7 +472,9 @@ void onClose(void)
         choice = msgBox(MB_OKCANCEL | MB_ICONQUESTION,
                         dlg->handle,
                         L"Rule modified",
-                        L"The changes contain errors; Click OK to leave the rule unchanged and close or click Cancel to fix the errors.");
+                        L"The changes contain errors; Click OK to leave the "
+                        L"rule unchanged and close or click Cancel to fix the "
+                        L"errors.");
     }
     else
     {
@@ -587,6 +585,9 @@ void layoutDlg(void)
     data.offsName = INPUT_CTRL_OFFSET(dlg->ctrlName);
     data.offsRegex = INPUT_CTRL_OFFSET(dlg->ctrlRegex);
     data.offsCmd = INPUT_CTRL_OFFSET(dlg->ctrlCmd);
+
+#undef INPUT_CTRL_OFFSET
+
     data.hdwp = NULL; /* Important for the error handling. */
 
     /* Calculate the new height of the dialog and resize it. */
