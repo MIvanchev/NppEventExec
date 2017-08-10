@@ -51,10 +51,10 @@ static HWND nppWnd;
 
 static const TCHAR NPP_PLUGIN_NAME[] = PLUGIN_NAME;
 static FuncItem menuItems[] = {
-    { L"Edit rules...", onEditRules, 0, false, NULL },
-    { L"Execution queue...", onExecQueue, 0, false, NULL },
-    { L"", NULL, 0, false, NULL },
-    { L"About...", onAbout, 0, false, NULL }
+    { L"Edit rules...", onEditRules },
+    { L"Execution queue...", onExecQueue },
+    { L"", NULL }, // Separator
+    { L"About...", onAbout }
 };
 static bool nppExecLoaded;
 static bool initFailed;
@@ -68,21 +68,24 @@ void initPlugin(NppData data)
     {
         /* TODO error */
         errorMsgBox(NULL,
-                    L"Failed to validate the plugin's module path. The plugin will not function until the issues are resolved.");
+                    L"Failed to validate the plugin's module path. The plugin "
+                    L"will not function until the issues are resolved.");
         goto fail_mod;
     }
     if (!(configDir = queryConfigDir()))
     {
         /* TODO error */
         errorMsgBox(NULL,
-                    L"Failed to query Notepad++'s configuration directory. The plugin will not function until the issues are resolved.");
+                    L"Failed to query Notepad++'s configuration directory. The "
+                    L"plugin will not function until the issues are resolved.");
         goto fail_config;
     }
     if (readRules(&rules))
     {
         /* TODO error */
         errorMsgBox(NULL,
-                    L"Failed to read the rules list. The plugin will not function until the issues are resolved.");
+                    L"Failed to read the rules list. The plugin will not "
+                    L"function until the issues are resolved.");
         goto fail_rules;
     }
 
@@ -194,7 +197,7 @@ wchar_t* queryConfigDir(void)
     assert(MAX_PATH >= 4);
 
     len = MAX_PATH + 1;
-    maxLen = (WPARAM) -1;
+    maxLen = MIN(SIZE_MAX, (WPARAM) -1);
 
     if (!(dir = allocStr(len)))
     {
@@ -311,38 +314,25 @@ fail_path_too_long:
 
 void onEditRules(void)
 {
-    if (isPluginInit())
+    if (openRulesDlg(&rules))
     {
-        if (openRulesDlg(&rules))
-        {
-            /* TODO error */
-            errorMsgBox(nppWnd, L"Failed to open the rule management dialog.");
-        }
+        /* TODO error */
+        errorMsgBox(nppWnd, L"Failed to open the rule management dialog.");
     }
-    else
-        errorMsgBox(nppWnd, L"The plugin was not fully initialized.");
 }
 
 void onExecQueue(void)
 {
-    if (isPluginInit())
+    if (openQueueDlg(getNppWnd(), QDLR_PLUGIN_MENU) == -1)
     {
-        if (openQueueDlg(getNppWnd(), QDLR_PLUGIN_MENU) == -1)
-        {
-            /* TODO error */
-            errorMsgBox(nppWnd, L"Failed to open the execution queue dialog.");
-        }
+        /* TODO error */
+        errorMsgBox(nppWnd, L"Failed to open the execution queue dialog.");
     }
-    else
-        errorMsgBox(nppWnd, L"The plugin was not fully initialized.");
 }
 
 void onAbout(void)
 {
-    if (isPluginInit())
-        openAboutDlg();
-    else
-        errorMsgBox(nppWnd, L"The plugin was not fully initialized.");
+    openAboutDlg();
 }
 
 int isPluginInit(void)
@@ -582,18 +572,41 @@ FuncItem* getFuncsArray(int *nbF)
 void beNotified(SCNotification *notification)
 {
     Sci_NotifyHeader *hdr;
+    HMENU menu;
+    size_t ii;
 
     hdr = &notification->nmhdr;
 
-    if (!isPluginInit() || reinterpret_cast<HWND>(hdr->hwndFrom) != nppWnd)
+    if (reinterpret_cast<HWND>(hdr->hwndFrom) != nppWnd)
         return;
 
-    if (hdr->code == NPPN_READY && !(nppExecLoaded = queryNppExecLoaded()))
+    if (hdr->code == NPPN_READY)
     {
-        errorMsgBox(nppWnd,
-                    L"NppExec was not loaded. No scripts will be executed until the issues are resolved.");
-        return;
+        if (!isPluginInit())
+        {
+            menu = reinterpret_cast<HMENU>(sendNppMsg(NPPM_GETMENUHANDLE,
+                                                      NPPPLUGINMENU,
+                                                      0));
+
+            for (ii = 0; ii < BUFLEN(menuItems); ii++)
+            {
+                EnableMenuItem(menu, menuItems[ii]._cmdID,
+                               MF_BYCOMMAND | MF_GRAYED);
+            }
+
+            return;
+        }
+
+        if (!(nppExecLoaded = queryNppExecLoaded()))
+        {
+            errorMsgBox(nppWnd,
+                        L"NppExec was not loaded. No scripts will be executed "
+                        L"until the issues are resolved.");
+            return;
+        }
     }
+    else if (!isPluginInit())
+        return;
 
     if (nppExecLoaded)
         execRules(hdr->idFrom, hdr->code);
@@ -606,7 +619,9 @@ void beNotified(SCNotification *notification)
             /* TODO error */
             emptyQueue();
             errorMsgBox(nppWnd,
-                        L"The remaining rules were forcefully terminated, because Notepad++ is shutting down and the wait dialog failed to launch.");
+                        L"The remaining rules were forcefully terminated, "
+                        L"because Notepad++ is shutting down and the wait "
+                        L"dialog failed to launch.");
         }
 
         deinitPlugin();

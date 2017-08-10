@@ -343,7 +343,7 @@ Test(csv, strings)
     assert_str_read(L"The quick brown fox jumped over\r\nthe lazy\r\ndog.");
     assert_str_read(L"Z");
     assert_str_read(L"Überhitzung der Verbindungselemente könnte zu Bränden in "
-                    "den Versorgungsschächten führen.");
+                    L"den Versorgungsschächten führen.");
     assert_str_read(L"Ich konnte mich eigentlich nie mit der \"Neuen Deutschen "
                     L"Welle\" identifizieren, denn...\r\nvieles aus der Zeit "
                     L"klang einfach nicht gut.");
