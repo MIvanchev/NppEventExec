@@ -610,6 +610,9 @@ int readChar(wchar_t *chr)
             }
 
             break;
+
+        default:
+            goto fail_invalid_state;
         }
 
         return IS_HIGH_SURROGATE(*chr) ? 2 : 1;
@@ -651,6 +654,7 @@ next_field:
     state = ST_INITIAL;
     return 0;
 
+fail_invalid_state:
 fail_eof:
 fail_syntax:
 fail_char:
