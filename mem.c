@@ -22,7 +22,7 @@ void* reallocMem(void *mem, size_t numBytes)
 {
     void *res;
 #ifdef DEBUG
-    DWORD prevSize;
+    SIZE_T prevSize;
 #endif
 
     if (numBytes > (SIZE_T) -1)
@@ -55,8 +55,8 @@ void* reallocMem(void *mem, size_t numBytes)
     }
 
 #ifdef DEBUG
-    allocatedBytes -= prevSize;
-    allocatedBytes += numBytes;
+    allocatedBytes -= (unsigned long) prevSize;
+    allocatedBytes += (unsigned long) numBytes;
 #endif
 
     return res;
@@ -73,7 +73,7 @@ void freeMem(void *mem)
         return;
 
 #ifdef DEBUG
-    allocatedBytes -= HeapSize(GetProcessHeap(), 0, mem);
+    allocatedBytes -= (unsigned long) HeapSize(GetProcessHeap(), 0, mem);
 #endif
 
     HeapFree(GetProcessHeap(), 0, mem);

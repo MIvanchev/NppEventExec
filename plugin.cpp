@@ -494,7 +494,7 @@ int main(int argc, char *argv[])
 {
     MSG msg;
 
-    srand(time(NULL));
+    srand(static_cast<UINT>(time(NULL)));
 
     pluginInst = GetModuleHandle(NULL);
     configDir = copyStr(L"config");
@@ -590,7 +590,7 @@ void beNotified(SCNotification *notification)
 
             for (ii = 0; ii < BUFLEN(menuItems); ii++)
             {
-                EnableMenuItem(menu, menuItems[ii]._cmdID,
+                EnableMenuItem(menu, static_cast<UINT>(menuItems[ii]._cmdID),
                                MF_BYCOMMAND | MF_GRAYED);
             }
 
