@@ -23,11 +23,37 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include "resource.h"
 #include "util.h"
 
-/** TODO */
+/**
+ * A placeholder which is displayed in the position column for queue entries
+ * the position of which cannot be displayed.
+ */
 #define PLACEHOLDER L"<n/a>"
 
-/** TODO */
-#define POS_ENTRIES_CHUNK 32
+/**
+ * The highest position in the queue for which a number will be shown in the
+ * position column; for positions higher than this, a placeholder string will
+ * be shown instead of a number.
+ *
+ * \sa POS_ENTRY_LEN
+ */
+#define MAX_ENTRY_POS 999
+
+/**
+ * The length in code units of a string that can hold the number of the
+ * highest position in the queue, for which a number will be shown.
+ *
+ * \sa MAX_ENTRY_POS
+ */
+#define POS_ENTRY_LEN 4
+
+/**
+ * The least number of position strings which are allocated in one step; the
+ * number of allocated position strings is always a multiple of this constant
+ * unless the maximum number of position strings is reached.
+ *
+ * \sa MAX_ENTRY_POS
+ */
+#define POS_ENTRIES_CHUNK 5
 
 typedef struct
 {
@@ -46,7 +72,6 @@ typedef struct
     /*const wchar_t *title;*/
     /*const wchar_t *msg;*/
     wchar_t *posEntries;
-    size_t posEntryLen;
     size_t posEntryCnt;
     size_t maxPosEntries;
     unsigned int queueSize;
@@ -216,7 +241,12 @@ INT_PTR CALLBACK dlgProc(HWND handle, UINT msg, WPARAM wp, LPARAM lp)
 
 void onInitDlg(HWND handle)
 {
-    unsigned int maxDigits;
+    assert(MAX_ENTRY_POS >= 0);
+    assert(MAX_ENTRY_POS <= SIZE_MAX);
+    assert(POS_ENTRY_LEN > 0);
+    assert(POS_ENTRY_LEN <= SIZE_MAX);
+    assert(POS_ENTRIES_CHUNK > 0);
+    assert(POS_ENTRIES_CHUNK <= UINT_MAX);
 
     dlg->handle = handle;
     dlg->lvQueue = GetDlgItem(handle, IDC_LV_QUEUE);
@@ -224,21 +254,7 @@ void onInitDlg(HWND handle)
     dlg->btnAbort = GetDlgItem(handle, IDC_BT_ABORT);
     dlg->btnClose = GetDlgItem(handle, IDCANCEL);
 
-    maxDigits = countPosDigits(INT_MAX);
-
-    if (maxDigits > SIZE_MAX - 1)
-    {
-        dlg->posEntryLen = 0;
-        dlg->maxPosEntries = 0;
-    }
-    else
-    {
-        dlg->posEntryLen = maxDigits + 1;
-        dlg->maxPosEntries = SIZE_MAX / dlg->posEntryLen;
-        if (dlg->maxPosEntries > INT_MAX)
-            dlg->maxPosEntries = INT_MAX;
-    }
-
+    dlg->maxPosEntries = MIN(SIZE_MAX / POS_ENTRY_LEN, MAX_ENTRY_POS);
     dlg->queueSize = getQueueSize(&dlg->foregroundCnt);
 
     enlargePosEntries(MAX(POS_ENTRIES_CHUNK, dlg->queueSize));
@@ -352,7 +368,7 @@ void onGetDispInfo(NMLVDISPINFO *dispInfo)
     {
     case COL_POS:
         if (pos < dlg->posEntryCnt)
-            item->pszText = dlg->posEntries + pos * dlg->posEntryLen;
+            item->pszText = dlg->posEntries + pos * POS_ENTRY_LEN;
         else
             item->pszText = PLACEHOLDER;
 
@@ -598,47 +614,36 @@ void layoutDlg(void)
 
 void enlargePosEntries(unsigned int count)
 {
-    unsigned int diff;
     wchar_t *entries;
-    size_t len;
+    size_t newEntryCnt;
     size_t ii;
 
     assert(count);
     assert(POS_ENTRIES_CHUNK > 0);
     assert(POS_ENTRIES_CHUNK <= UINT_MAX);
 
-    if (count <= dlg->posEntryCnt)
+    if (count <= dlg->posEntryCnt
+        || dlg->posEntryCnt == dlg->maxPosEntries)
     {
-        /* No need to do anything, enough entries are available. */
-        return;
-    }
-    if (dlg->posEntryCnt == dlg->maxPosEntries)
-    {
-        /* TODO warning
-        **
-        ** Cannot grow further.
-        */
-
         return;
     }
 
-    /* Calculate how many entries to add to count to make it a factor of
-    ** POS_ENTRIES_CHUNK.
-    */
-
-    diff = POS_ENTRIES_CHUNK - (1 + (count - 1) % POS_ENTRIES_CHUNK);
-
-    if (diff > dlg->maxPosEntries
-        || count > dlg->maxPosEntries - diff)
+    if (count % POS_ENTRIES_CHUNK)
     {
-        count = (unsigned int) dlg->maxPosEntries;
+        count -= count % POS_ENTRIES_CHUNK;
+
+        if (count > UINT_MAX - POS_ENTRIES_CHUNK)
+            count = UINT_MAX;
+        else
+            count += POS_ENTRIES_CHUNK;
     }
+
+    if (count > dlg->maxPosEntries)
+        newEntryCnt = dlg->maxPosEntries;
     else
-        count += diff;
+        newEntryCnt = count;
 
-    len = count * dlg->posEntryLen;
-
-    if (!(entries = reallocStr(dlg->posEntries, len)))
+    if (!(entries = reallocStr(dlg->posEntries, newEntryCnt * POS_ENTRY_LEN)))
     {
         /* TODO warning
         **
@@ -649,20 +654,20 @@ void enlargePosEntries(unsigned int count)
         return;
     }
 
-    for (ii = dlg->posEntryCnt; ii < count; ii++)
-        formatPos(entries + ii * dlg->posEntryLen, (unsigned int) ii);
+    for (ii = dlg->posEntryCnt; ii < newEntryCnt; ii++)
+        formatPos(entries + ii * POS_ENTRY_LEN, (unsigned int) ii);
 
     dlg->posEntries = entries;
-    dlg->posEntryCnt = count;
+    dlg->posEntryCnt = newEntryCnt;
 }
 
 void compactPosEntries(void)
 {
     wchar_t *entries;
-    size_t count;
-    size_t len;
+    size_t newEntryCnt;
 
     assert(POS_ENTRIES_CHUNK > 0);
+    assert(POS_ENTRIES_CHUNK <= SIZE_MAX);
 
     /* The initial chunk is never released from memory so don't bother. */
 
@@ -673,25 +678,23 @@ void compactPosEntries(void)
     }
 
     if (dlg->queueSize <= POS_ENTRIES_CHUNK)
-        count = POS_ENTRIES_CHUNK;
+        newEntryCnt = POS_ENTRIES_CHUNK;
     else
     {
         /* Find out the next multiple of POS_ENTRIES_CHUNK, but do not compact
         ** if the current number of rules fits within the last allocated chunk.
         */
 
-        count = dlg->queueSize - 1;
-        count -= count % POS_ENTRIES_CHUNK;
+        newEntryCnt = dlg->queueSize - 1;
+        newEntryCnt -= newEntryCnt % POS_ENTRIES_CHUNK;
 
-        if (count >= dlg->posEntryCnt - POS_ENTRIES_CHUNK)
+        if (newEntryCnt >= dlg->posEntryCnt - POS_ENTRIES_CHUNK)
             return;
 
-        count += POS_ENTRIES_CHUNK;
+        newEntryCnt += POS_ENTRIES_CHUNK;
     }
 
-    len = count * dlg->posEntryLen;
-
-    if (!(entries = reallocStr(dlg->posEntries, len)))
+    if (!(entries = reallocStr(dlg->posEntries, newEntryCnt * POS_ENTRY_LEN)))
     {
         /* TODO warning
         **
@@ -703,7 +706,7 @@ void compactPosEntries(void)
     }
 
     dlg->posEntries = entries;
-    dlg->posEntryCnt = count;
+    dlg->posEntryCnt = newEntryCnt;
 }
 
 unsigned int countPosDigits(unsigned int pos)
