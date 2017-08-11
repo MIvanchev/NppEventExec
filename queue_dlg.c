@@ -489,7 +489,8 @@ void onClose(void)
         choice = msgBox(MB_YESNO | MB_ICONQUESTION,
                         dlg->handle,
                         L"Cancel",
-                        L"Are you sure you want to cancel saving the changes to the rule list?");
+                        L"Are you sure you want to cancel saving the changes "
+                        L"to the rule list?");
 
         if (choice == IDYES)
         {

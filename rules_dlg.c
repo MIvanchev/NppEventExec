@@ -286,7 +286,7 @@ void onInitDlg(HWND handle)
     DeleteObject(bmpBtnsMasked);
     DeleteObject(bmpBtnsDisabled);
     /* Set one of the pointers to NULL so the error handling code knows the
-    ** bitmaps had been deleted.
+    ** bitmaps have been deleted.
     */
     bmpBtns = NULL;
 
@@ -503,7 +503,8 @@ void onReset(void)
     choice = msgBox(MB_YESNO,
                     dlg->handle,
                     L"Reset",
-                    L"Are you sure you want to revert all changes to the rules?");
+                    L"Are you sure you want to revert all changes to the "
+                    L"rules?");
 
     if (choice == IDNO)
         return;
@@ -517,7 +518,7 @@ void onReset(void)
     if (!resetRules())
     {
         errorMsgBox(dlg->handle,
-                    L"Failed to revent the changes made to the rules.");
+                    L"Failed to revert the changes made to the rules.");
         return;
     }
 
@@ -1009,7 +1010,6 @@ fail_write:
 fail_copy:
 fail_dlg:
     errorMsgBox(dlg->handle,
-                L"%s",
                 L"Failed to save the changes to the rule list.");
 
     return false;
@@ -1061,7 +1061,8 @@ void askToSaveChanges(void)
     choice = msgBox(MB_YESNOCANCEL | MB_ICONQUESTION,
                     dlg->handle,
                     L"Unsaved changes",
-                    L"Do you wish to save the changes made to the rule list before closing?");
+                    L"Do you wish to save the changes made to the rule list "
+                    L"before closing?");
 
     switch (choice)
     {

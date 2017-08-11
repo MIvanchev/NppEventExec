@@ -139,8 +139,8 @@ int execRule(uptr_t bufId, const wchar_t *path, const Rule *rule)
         processQueueEvent(
             rule->background ? QUEUE_ADD_BACKGROUND : QUEUE_ADD_FOREGROUND);
     }
-    if (!rule->background
-        && openQueueDlg(getNppWnd(), QDLR_FOREGROUND_RULE) == -1)
+    else if (!rule->background
+             && openQueueDlg(getNppWnd(), QDLR_FOREGROUND_RULE) == -1)
     {
         /* TODO launch dialog */
         goto fail_dlg;
