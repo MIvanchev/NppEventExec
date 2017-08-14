@@ -1,5 +1,5 @@
 # NppEventExec
-[![SemVer](https://img.shields.io/badge/version-0.1.1-brightgreen.svg)](http://semver.org)
+[![SemVer](https://img.shields.io/badge/version-0.9.0-brightgreen.svg)](http://semver.org)
 [![Build status](https://ci.appveyor.com/api/projects/status/eav4wt6kbx47d74y?svg=true)](https://ci.appveyor.com/project/MIvanchev/nppeventexec)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 
@@ -20,6 +20,7 @@ A handy [Notepad++](https://github.com/notepad-plus-plus/notepad-plus-plus) plug
 * [Compatibility](#compatibility)
 * [Supported Events](#supported-events)
 * [Compilation](#compilation)
+* [Known issues](#known-issues)
 * [Help and support](#help-and-support)
 * [License](#license)
 
@@ -31,7 +32,7 @@ The supported Notepad++ events are listed under [Supported Events](#supported-ev
 
 ## Installation
 
-As of yet, NppEventExec cannot be installed through the editor's plugin manager. Instead, download the [latest binaries](https://github.com/MIvanchev/NppEventExec/releases/download/v0.1.1/NppEventExec-plugin-x86-0.1.1.zip) from this repository and extract the contents to Notepad++'s plugins directory, e.g. `C:\Program Files\Notepad++\plugins`. For the plugin to be usable, NppExec needs to be installed as well.
+As of yet, NppEventExec cannot be installed through the editor's plugin manager. Instead, download the latest binaries for your platform &ndash; [x86](https://github.com/MIvanchev/NppEventExec/releases/download/v0.9.0/NppEventExec-plugin-x86-0.9.0.zip) or [x64](https://github.com/MIvanchev/NppEventExec/releases/download/v0.9.0/NppEventExec-plugin-x64-0.9.0.zip) &ndash; from this repository and extract the contents to Notepad++'s plugins directory, e.g. `C:\Program Files\Notepad++\plugins`. For the plugin to be usable, NppExec needs to be installed as well.
 
 ## Usage
 
@@ -70,11 +71,13 @@ The executed NppExec scripts receive 2 arguments from NppEventExec, in `$(ARGV[1
 
 ## Releases
 
-The latest version of NppEventExec is `0.1.1`. You can grab the binaries from this repository; see [Installation](#installation) for installation instructions. This is quite an early release still missing a lot of features so be vigilant and please report any issues you encounter. Any feedback is much appreciated &ndash; share your thoughts, wishes, ideas and problems.
+The latest version of NppEventExec is `0.9.0`. You can grab the binaries from this repository; see [Installation](#installation) for installation instructions. Although the plugin has grown in features since previous releases, they are yet to be put to a trial by the broad public. Therefore, please be vigilant and report any issues you encounter. Any feedback is much appreciated &ndash; share your thoughts, wishes, ideas and problems.
 
 ## Compatibility
 
-NppEventExec has been tested on 32-bit Notepad++ v6.9.2 with NppExec v0.5.3. Earlier Notepad++ versions should be compatible; the same holds for NppExec starting with v0.2.5. Every test report with other versions is greatly appreciated! Just like Notepad++, the plugin is Unicode only. ANSI versions will not be provided due to the huge effort to ensure correct operation. The only tested OS so far is Windows 7 64-bit, though the plugin also works in [Wine](https://www.winehq.org/).
+NppEventExec has been tested on 32-bit and 64-bit Notepad++. The minimal Notepad++ versions known to work are v6.9.2 (32-bit) and v7.4.2 (64-bit). Earlier versions should be compatible as well. The minimal NppExec versions known to work are v0.5.3 (32-bit) and v0.5.9.9 (64-bit). Theoretically, all versions starting with v0.2.5 should be compatible.
+
+Every test report with other versions is greatly appreciated! Just like Notepad++, the plugin is Unicode only. ANSI versions will not be provided due to the huge effort to ensure correct operation. The only tested OS so far is Windows 7 64-bit, though the plugin also works in [Wine](https://www.winehq.org/).
 
 ## Supported Events
 Event | Meaning
@@ -118,11 +121,18 @@ make CONFIGURATION=Release PLATFORM=x64
 
 The default configuration and platform are `Debug` and `Win32` respectively. To be fully compatible with the regular expression format of Notepad++, NppEventExec depends on [Boost.Regex](http://www.boost.org/doc/libs/1_58_0/libs/regex/doc/html/index.html). If you use Mingw-w64 or MinGW, edit the makefile to set the correct path and library name for Boost.Regex. When using Visual Studio, you can quickly obtain precompiled binaries with [NuGet](https://www.nuget.org/). An executable for quick testing is generated in the debug configuration, but only when using the makefile.
 
+## Known issues
+
+Currently, there are issues when foreground rules are triggered from NppExec scripts or from the console, e.g. by saving or opening a file. Depending on the circumstances, a rule might not get executed and will be stuck in the state `Waiting` until it's aborted. In another case, the user may experience that rules are executed out of order. This is partly due to the single threaded nature of NppExec and partly due to unfilled gaps in the scheduling semantics of NppEventExec.
+
+Please report any abnormal or counter-intuitive behaviour you encouter while using the plugin or just share how you are using the plugin. Any information on the patterns in which users are using NppEventExec is valuable.
+
 ## Help and support
 
-The best place to discuss the plugin, receive help or report a problem is the [Notepad++ Community](https://notepad-plus-plus.org/community/). Of course you can also contact me privately.
+The best place to discuss the plugin and to receive help is the [Notepad++ Community](https://notepad-plus-plus.org/community/). You can also submit issues through the community's website or use the [issues section](issues) of this repository (you need to sign in). Of course, you can also contact me privately.
 
 ## Credits
+
 The plugin is using **modified** icons from the set [16x16 free application icons](http://www.small-icons.com/packs/16x16-free-application-icons.htm) from [Aha-Soft](http://www.aha-soft.com/). The said icon pack is distributed under the license [Creative Commons Attribution 3.0 United States (CC BY 3.0 US)](https://creativecommons.org/licenses/by/3.0/us/). Aha-Soft makes awesome icons.
 
 ## License
