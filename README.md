@@ -129,7 +129,7 @@ Please report any abnormal or counter-intuitive behaviour you encouter while usi
 
 ## Help and support
 
-The best place to discuss the plugin and to receive help is the [Notepad++ Community](https://notepad-plus-plus.org/community/). You can also submit issues through the community's website or use the [issues section](issues) of this repository (you need to sign in). Of course, you can also contact me privately.
+The best place to discuss the plugin and to receive help is the [Notepad++ Community](https://notepad-plus-plus.org/community/). You can also submit issues through the community's website or use the [issues section](https://github.com/MIvanchev/NppEventExec/issues) of this repository (you need to sign in). Of course, you can also contact me privately.
 
 ## Credits
 
