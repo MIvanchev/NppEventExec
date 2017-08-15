@@ -32,13 +32,13 @@ The supported Notepad++ events are listed under [Supported Events](#supported-ev
 
 ## Installation
 
-As of yet, NppEventExec cannot be installed through the editor's plugin manager. Instead, download the latest binaries for your platform &ndash; [x86](https://github.com/MIvanchev/NppEventExec/releases/download/v0.9.0/NppEventExec-plugin-x86-0.9.0.zip) or [x64](https://github.com/MIvanchev/NppEventExec/releases/download/v0.9.0/NppEventExec-plugin-x64-0.9.0.zip) &ndash; from this repository and extract the contents to Notepad++'s plugins directory, e.g. `C:\Program Files\Notepad++\plugins`. For the plugin to be usable, NppExec needs to be installed as well.
+The prefered way to install NppEventExec is through the Notepad++'s plugin manager. However, if you wish to install it without using the plugin manager, download the latest binaries for your platform &ndash; [x86](https://github.com/MIvanchev/NppEventExec/releases/download/v0.9.0/NppEventExec-plugin-x86-0.9.0.zip) or [x64](https://github.com/MIvanchev/NppEventExec/releases/download/v0.9.0/NppEventExec-plugin-x64-0.9.0.zip) &ndash; from this repository and extract the contents to Notepad++'s plugins directory, e.g. `C:\Program Files\Notepad++\plugins`. For the plugin to be usable, NppExec needs to be installed as well.
 
 ## Usage
 
 ### Defining commands
 
-This documentation assumes you're acquinted with NppExec. This is because NppEventExec's purpose is the automatic execution of commands which were previously defined in NppExec or the path to a file containing an NppExec script on Notepad++ events, e.g. a document is about to be saved, a new document was created etc. For additional control, you can define a regular expression which the absolute path of the active document is checked against before the execution takes place. To specify what gets executed when, NppEventExec supports to creation of *rules*.
+This documentation assumes you're acquainted with NppExec. This is because NppEventExec's purpose is the automatic execution of commands which were previously defined in NppExec or the path to a file containing an NppExec script on Notepad++ events, e.g. a document is about to be saved, a new document was created etc. For additional control, you can define a regular expression which the absolute path of the active document is checked against before the execution takes place. To specify what gets executed when, NppEventExec supports the creation of *rules*.
 
 ### Managing rules
 
@@ -71,7 +71,7 @@ The executed NppExec scripts receive 2 arguments from NppEventExec, in `$(ARGV[1
 
 ## Releases
 
-The latest version of NppEventExec is `0.9.0`. You can grab the binaries from this repository; see [Installation](#installation) for installation instructions. Although the plugin has grown in features since previous releases, they are yet to be put to a trial by the broad public. Therefore, please be vigilant and report any issues you encounter. Any feedback is much appreciated &ndash; share your thoughts, wishes, ideas and problems.
+The latest version of NppEventExec is `0.9.0`. You can install it from Notepad++'s plugin manager or grab the binaries from this repository; see [Installation](#installation) for installation instructions. Although the plugin has grown in features since previous releases, they are yet to be put to a trial by the broad public. Therefore, please be vigilant and report any issues you encounter. Any feedback is much appreciated &ndash; share your thoughts, wishes, ideas and problems.
 
 ## Compatibility
 
